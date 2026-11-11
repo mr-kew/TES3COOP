@@ -16,6 +16,9 @@
 
 #include "../mwgui/messagebox.hpp"
 
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+
 namespace MWDialogue
 {
     Quest& Journal::getQuest (const std::string& id)
@@ -156,9 +159,31 @@ namespace MWDialogue
     {
         Topic& topic = getTopic (topicId);
 
+        for (Topic::TEntryIter iter = topic.begin(); iter != topic.end(); ++iter)
+            if (iter->mInfoId == infoId)
+                return;
+
         JournalEntry entry(topicId, infoId, actor);
         entry.mActorName = actor.getClass().getName(actor);
         topic.addEntry (entry);
+
+        mwmp::LocalPlayer* localPlayer = mwmp::Main::get().getLocalPlayer();
+        if (localPlayer->isLoggedIn())
+            localPlayer->sendTopicJournalEntry(topicId, infoId, entry.getText(), entry.mActorName);
+    }
+
+    void Journal::addTopicEntry(const std::string& topicId, const std::string& infoId,
+        const std::string& text, const std::string& actorName)
+    {
+        if (!isThere(topicId, infoId))
+            return;
+
+        JournalEntry entry;
+        entry.mTopic = topicId;
+        entry.mInfoId = infoId;
+        entry.mText = text;
+        entry.mActorName = actorName;
+        getTopic(topicId).addEntry(entry);
     }
 
     void Journal::removeLastAddedTopicResponse(const std::string &topicId, const std::string &actorName)
