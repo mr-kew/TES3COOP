@@ -1,4 +1,21 @@
-# Topic journal persistence plugin
+# Server script features
+
+## Friendly fire
+
+The `friendly fire` game setting controls damage between allied players. It defaults
+to `true` to preserve existing behavior. To disable it for a player from a server
+script, set the value and send that player's settings when they connect:
+
+```lua
+tes3mp.SetGameSettingValue(pid, "friendly fire", "false")
+tes3mp.SendSettings(pid, false, false)
+```
+
+Set it to `"true"` to allow allied damage. Apply the same value to every player so
+all clients use a consistent rule. The check uses the attacker's ally list, matching
+the existing one-way ally relationship.
+
+## Topic journal persistence plugin
 
 This plugin stores the dialogue responses shown in the Journal's **Topics** section
 alongside quest journal entries. It follows the standard CoreScripts `shareJournal`

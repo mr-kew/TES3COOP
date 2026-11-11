@@ -41,6 +41,9 @@ namespace MechanicsHelper
     //       who isn't mutually allied to you
     bool isTeamMember(const MWWorld::Ptr& playerChecked, const MWWorld::Ptr& playerWithTeam);
 
+    // Check whether damage from attacker to victim is disabled by the server's friendly-fire setting.
+    bool isFriendlyFireDisabled(const MWWorld::Ptr& victim, const MWWorld::Ptr& attacker);
+
     bool getSpellSuccess(std::string spellId, const MWWorld::Ptr& caster);
 
     void processAttack(mwmp::Attack attack, const MWWorld::Ptr& attacker);
