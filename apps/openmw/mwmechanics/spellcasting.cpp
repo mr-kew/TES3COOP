@@ -78,6 +78,9 @@ namespace MWMechanics
                             const ESM::EffectList &effects, ESM::RangeType range, bool reflected, bool exploded)
     {
         const bool targetIsActor = !target.isEmpty() && target.getClass().isActor();
+        if (targetIsActor && !caster.isEmpty() && MechanicsHelper::isFriendlyFireDisabled(target, caster))
+            return;
+
         if (targetIsActor)
         {
             // Early-out for characters that have departed.
