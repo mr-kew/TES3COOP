@@ -1,0 +1,125 @@
+name: Build Windows TES3MP release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - topic-journal-release
+    tags:
+      - "topic-journal-*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Check out TES3MP
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Check out matching CrabNet
+        uses: actions/checkout@v7
+        with:
+          repository: TES3MP/CrabNet
+          ref: 19e66190e83f53bcdcbcd6513238ed2e54878a21
+          path: deps/CrabNet
+
+      - name: Check out matching CoreScripts
+        uses: actions/checkout@v7
+        with:
+          repository: TES3MP/CoreScripts
+          ref: 0.8.1
+          path: deps/CoreScripts
+
+      - name: Set up compatible CMake
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install CMake 3.31
+        shell: pwsh
+        run: python -m pip install cmake==3.31.8
+
+      - name: Ensure the VS 2019-compatible toolset is available
+        shell: pwsh
+        run: |
+          $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installPath = & $vswhere -latest -products '*' -property installationPath
+          if (-not $installPath) { throw 'Visual Studio installation was not found.' }
+          $toolset = & $vswhere -products '*' -requires Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64 -property installationPath
+          if (-not $toolset) {
+            & $installer modify --installPath $installPath --add Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64 --quiet --norestart --wait
+            if ($LASTEXITCODE -ne 0) { throw "Installing the v142 toolset failed with exit code $LASTEXITCODE." }
+          }
+
+      - name: Build CrabNet
+        shell: pwsh
+        run: |
+          $prefix = Join-Path $env:GITHUB_WORKSPACE 'deps\raknet'
+          cmake -S deps/CrabNet -B deps/CrabNet/build -A x64 -T v142 `
+            -DCRABNET_ENABLE_DLL=OFF `
+            -DCRABNET_ENABLE_STATIC=ON `
+            "-DCMAKE_INSTALL_PREFIX=$prefix"
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet configuration failed.' }
+          cmake --build deps/CrabNet/build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet build failed.' }
+          cmake --install deps/CrabNet/build --config Release
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet install failed.' }
+
+      - name: Configure TES3MP
+        shell: bash
+        run: |
+          export RAKNET_ROOT="$(cygpath -m "$GITHUB_WORKSPACE/deps/raknet")"
+          bash CI/before_script.msvc.sh -c Release -p Win64 -v 2022 -V -i "$GITHUB_WORKSPACE/install"
+
+      - name: Build and install TES3MP
+        shell: pwsh
+        run: |
+          cmake --build MSVC2022_64 --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'TES3MP build failed.' }
+          cmake --install MSVC2022_64 --config Release
+          if ($LASTEXITCODE -ne 0) { throw 'TES3MP install failed.' }
+
+      - name: Assemble release ZIP
+        shell: pwsh
+        run: |
+          $serverDir = Join-Path $env:GITHUB_WORKSPACE 'install\server'
+          New-Item -ItemType Directory -Force -Path $serverDir | Out-Null
+          foreach ($folder in @('data', 'lib', 'scripts')) {
+            Copy-Item "deps\CoreScripts\$folder" $serverDir -Recurse
+          }
+
+          $customDir = Join-Path $serverDir 'scripts\custom'
+          New-Item -ItemType Directory -Force -Path $customDir | Out-Null
+          Copy-Item server-scripts/custom/topicJournalPersistence.lua $customDir
+
+          $customScripts = Join-Path $serverDir 'scripts\customScripts.lua'
+          if (-not (Test-Path $customScripts)) { throw 'CoreScripts customScripts.lua was not found.' }
+          $requireLine = 'require("custom/topicJournalPersistence")'
+          if (-not (Select-String -Path $customScripts -SimpleMatch $requireLine -Quiet)) {
+            Add-Content -Path $customScripts -Value $requireLine
+          }
+
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "manual-$($env:GITHUB_SHA.Substring(0, 7))" }
+          $zip = "tes3mp.Win64.release.$tag.zip"
+          Compress-Archive -Path 'install\*' -DestinationPath $zip -CompressionLevel Optimal
+
+      - name: Upload downloadable build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: TES3MP-Windows-x64
+          path: tes3mp.Win64.release.*.zip
+          if-no-files-found: error
+
+      - name: Create draft GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          name: TES3MP ${{ github.ref_name }}
+          draft: true
+          generate_release_notes: true
+          files: tes3mp.Win64.release.*.zip
