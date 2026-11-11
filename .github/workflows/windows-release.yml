@@ -35,6 +35,13 @@ jobs:
           ref: 0.8.1
           path: deps/CoreScripts
 
+      - name: Check out LuaJIT
+        uses: actions/checkout@v7
+        with:
+          repository: LuaJIT/LuaJIT
+          ref: v2.1
+          path: deps/LuaJIT
+
       - name: Set up compatible CMake
         uses: actions/setup-python@v6
         with:
@@ -70,10 +77,35 @@ jobs:
           cmake --install deps/CrabNet/build --config Release
           if ($LASTEXITCODE -ne 0) { throw 'CrabNet install failed.' }
 
+      - name: Build LuaJIT
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installPath = & $vswhere -latest -products '*' -property installationPath
+          $devCmd = Join-Path $installPath 'Common7\Tools\VsDevCmd.bat'
+          $luaSrc = (Resolve-Path 'deps\LuaJIT\src').Path
+          @"
+          call "$devCmd" -no_logo -arch=amd64 -host_arch=amd64 -vcvars_ver=14.2
+          if errorlevel 1 exit /b %errorlevel%
+          cd /d "$luaSrc"
+          call msvcbuild.bat
+          exit /b %errorlevel%
+          "@ | Set-Content build-luajit.cmd -Encoding ascii
+          & $env:ComSpec /d /c build-luajit.cmd
+          if ($LASTEXITCODE -ne 0) { throw 'LuaJIT build failed.' }
+
+          $prefix = Join-Path $env:GITHUB_WORKSPACE 'deps\LuaJIT-install'
+          New-Item -ItemType Directory -Force -Path "$prefix\include", "$prefix\lib", "$prefix\bin" | Out-Null
+          Copy-Item 'deps\LuaJIT\src\*.h' "$prefix\include"
+          Copy-Item 'deps\LuaJIT\src\lua51.lib' "$prefix\lib"
+          Copy-Item 'deps\LuaJIT\src\lua51.dll' "$prefix\bin"
+          "LUAJIT_HOME=$prefix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Configure TES3MP
         shell: bash
         run: |
           export RAKNET_ROOT="$(cygpath -m "$GITHUB_WORKSPACE/deps/raknet")"
+          export LUAJIT_HOME="$(cygpath -m "$LUAJIT_HOME")"
           bash CI/before_script.msvc.sh -c Release -p Win64 -v 2022 -V -i "$GITHUB_WORKSPACE/install"
 
       - name: Build and install TES3MP
@@ -83,6 +115,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'TES3MP build failed.' }
           cmake --install MSVC2022_64 --config Release
           if ($LASTEXITCODE -ne 0) { throw 'TES3MP install failed.' }
+          Copy-Item 'deps\LuaJIT-install\bin\lua51.dll' 'install'
 
       - name: Assemble release ZIP
         shell: pwsh
