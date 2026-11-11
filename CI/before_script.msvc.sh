@@ -65,6 +65,7 @@ SKIP_EXTRACT=""
 KEEP=""
 UNITY_BUILD=""
 VS_VERSION=""
+CMAKE_TOOLSET=""
 NMAKE=""
 NINJA=""
 PDBS=""
@@ -342,6 +343,21 @@ if [ -z $VS_VERSION ]; then
 fi
 
 case $VS_VERSION in
+	17|17.0|2022 )
+		GENERATOR="Visual Studio 17 2022"
+		TOOLSET="vc142"
+		MSVC_REAL_VER="17"
+		MSVC_VER="14.2"
+		MSVC_YEAR="2015"
+		# Use the compatible VS 2019 dependency packages shipped by OpenMW.
+		MSVC_REAL_YEAR="2019"
+		MSVC_DISPLAY_YEAR="2022"
+		BOOST_VER="1.71.0"
+		BOOST_VER_URL="1_71_0"
+		BOOST_VER_SDK="107100"
+		CMAKE_TOOLSET="-T v142"
+		;;
+
 	16|16.0|2019 )
 		GENERATOR="Visual Studio 16 2019"
 		TOOLSET="vc142"
@@ -400,6 +416,10 @@ esac
 
 if [ $BITS -eq 64 ] && [ $MSVC_REAL_VER -lt 16 ]; then
 	GENERATOR="${GENERATOR} Win64"
+fi
+
+if [ -n "$CMAKE_TOOLSET" ] && [ -z "$NMAKE" ] && [ -z "$NINJA" ]; then
+	add_cmake_opts "$CMAKE_TOOLSET"
 fi
 
 if [ -n "$NMAKE" ]; then
