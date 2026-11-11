@@ -1014,6 +1014,10 @@ echo
 echo "Setting up OpenMW build..."
 add_cmake_opts -DOPENMW_MP_BUILD=on
 add_cmake_opts -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+if [ -n "${LUAJIT_HOME:-}" ]; then
+	add_cmake_opts "-DLuaJit_INCLUDE_DIR=${LUAJIT_HOME}/include" \
+		"-DLuaJit_LIBRARY=${LUAJIT_HOME}/lib/lua51.lib"
+fi
 if [ ! -z $CI ]; then
 	case $STEP in
 		components )
