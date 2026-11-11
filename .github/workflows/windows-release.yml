@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   build-windows:
+    if: github.event.forced != true
     runs-on: windows-2022
 
     steps:
