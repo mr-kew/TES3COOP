@@ -65,6 +65,7 @@ SKIP_EXTRACT=""
 KEEP=""
 UNITY_BUILD=""
 VS_VERSION=""
+CMAKE_TOOLSET=""
 NMAKE=""
 NINJA=""
 PDBS=""
@@ -342,6 +343,21 @@ if [ -z $VS_VERSION ]; then
 fi
 
 case $VS_VERSION in
+	17|17.0|2022 )
+		GENERATOR="Visual Studio 17 2022"
+		TOOLSET="vc142"
+		MSVC_REAL_VER="17"
+		MSVC_VER="14.2"
+		MSVC_YEAR="2015"
+		# Use the compatible VS 2019 dependency packages shipped by OpenMW.
+		MSVC_REAL_YEAR="2019"
+		MSVC_DISPLAY_YEAR="2022"
+		BOOST_VER="1.71.0"
+		BOOST_VER_URL="1_71_0"
+		BOOST_VER_SDK="107100"
+		CMAKE_TOOLSET="-T v142"
+		;;
+
 	16|16.0|2019 )
 		GENERATOR="Visual Studio 16 2019"
 		TOOLSET="vc142"
@@ -400,6 +416,10 @@ esac
 
 if [ $BITS -eq 64 ] && [ $MSVC_REAL_VER -lt 16 ]; then
 	GENERATOR="${GENERATOR} Win64"
+fi
+
+if [ -n "$CMAKE_TOOLSET" ] && [ -z "$NMAKE" ] && [ -z "$NINJA" ]; then
+	add_cmake_opts "$CMAKE_TOOLSET"
 fi
 
 if [ -n "$NMAKE" ]; then
@@ -841,7 +861,7 @@ fi
 			aqt-venv/${VENV_BIN_DIR}/pip list | grep 'aqtinstall\s*1.1.3' || [ $? -ne 0 ]
 			if [ $? -eq 0 ]; then
 				echo "  Installing aqt wheel into virtualenv..."
-				run_cmd "aqt-venv/${VENV_BIN_DIR}/pip" install aqtinstall==1.1.3
+				run_cmd "aqt-venv/${VENV_BIN_DIR}/pip" install aqtinstall==1.1.3 setuptools==80.9.0
 			fi
 			popd > /dev/null
 
@@ -992,8 +1012,24 @@ echo
 cd $DEPS_INSTALL/..
 echo
 echo "Setting up OpenMW build..."
-add_cmake_opts -DOPENMW_MP_BUILD=on
+if [ "${TES3MP_RELEASE_BUILD:-}" = "1" ]; then
+	# The portable TES3MP release needs the game, server, browser, launcher and wizard.
+	# Skip unrelated editor and developer utility targets to reduce CI build time.
+	add_cmake_opts -DBUILD_OPENCS=OFF \
+		-DBUILD_BSATOOL=OFF \
+		-DBUILD_ESMTOOL=OFF \
+		-DBUILD_NIFTEST=OFF \
+		-DBUILD_ESSIMPORTER=OFF \
+		-DBUILD_MWINIIMPORTER=OFF \
+		-DOPENMW_MP_BUILD=OFF
+else
+	add_cmake_opts -DOPENMW_MP_BUILD=on
+fi
 add_cmake_opts -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
+if [ -n "${LUAJIT_HOME:-}" ]; then
+	add_cmake_opts "-DLuaJit_INCLUDE_DIR=${LUAJIT_HOME}/include" \
+		"-DLuaJit_LIBRARY=${LUAJIT_HOME}/lib/lua51.lib"
+fi
 if [ ! -z $CI ]; then
 	case $STEP in
 		components )

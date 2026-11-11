@@ -100,6 +100,8 @@ namespace mwmp
         void sendQuickKey(unsigned short slot, int type, const std::string& itemId = "");
         void sendJournalEntry(const std::string& quest, int index, const MWWorld::Ptr& actor);
         void sendJournalIndex(const std::string& quest, int index);
+        void sendTopicJournalEntry(const std::string& topicId, const std::string& infoId,
+            const std::string& text, const std::string& actorName);
         void sendFactionRank(const std::string& factionId, int rank);
         void sendFactionExpulsionState(const std::string& factionId, bool isExpelled);
         void sendFactionReputation(const std::string& factionId, int reputation);

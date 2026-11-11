@@ -2,6 +2,7 @@
 #include <components/openmw-mp/Utils.hpp>
 
 #include <components/misc/rng.hpp>
+#include <components/settings/settings.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
@@ -343,6 +344,11 @@ bool MechanicsHelper::isTeamMember(const MWWorld::Ptr& playerChecked, const MWWo
     return isTeamMember;
 }
 
+bool MechanicsHelper::isFriendlyFireDisabled(const MWWorld::Ptr& victim, const MWWorld::Ptr& attacker)
+{
+    return !Settings::Manager::getBool("friendly fire", "Game") && isTeamMember(victim, attacker);
+}
+
 void MechanicsHelper::processAttack(Attack attack, const MWWorld::Ptr& attacker)
 {
     LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE, "Processing attack from %s of type %i",
@@ -382,6 +388,10 @@ void MechanicsHelper::processAttack(Attack attack, const MWWorld::Ptr& attacker)
         else if (controller->isDedicatedActor(attack.target.refNum, attack.target.mpNum))
             victim = controller->getDedicatedActor(attack.target.refNum, attack.target.mpNum)->getPtr();
     }
+
+    // Suppress allied damage and on-hit weapon enchantments before they are applied.
+    if (attack.isHit && !victim.isEmpty() && isFriendlyFireDisabled(victim, attacker))
+        return;
 
     if (attack.isHit)
     {

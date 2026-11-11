@@ -9,6 +9,7 @@
     {"AddJournalEntry",                   QuestFunctions::AddJournalEntry},\
     {"AddJournalEntryWithTimestamp",      QuestFunctions::AddJournalEntryWithTimestamp},\
     {"AddJournalIndex",                   QuestFunctions::AddJournalIndex},\
+    {"AddTopicJournalEntry",              QuestFunctions::AddTopicJournalEntry},\
     \
     {"SetReputation",                     QuestFunctions::SetReputation},\
     \
@@ -16,6 +17,10 @@
     {"GetJournalItemIndex",               QuestFunctions::GetJournalItemIndex},\
     {"GetJournalItemType",                QuestFunctions::GetJournalItemType},\
     {"GetJournalItemActorRefId",          QuestFunctions::GetJournalItemActorRefId},\
+    {"GetJournalItemTopicId",              QuestFunctions::GetJournalItemTopicId},\
+    {"GetJournalItemInfoId",               QuestFunctions::GetJournalItemInfoId},\
+    {"GetJournalItemText",                 QuestFunctions::GetJournalItemText},\
+    {"GetJournalItemActorName",            QuestFunctions::GetJournalItemActorName},\
     \
     {"GetReputation",                     QuestFunctions::GetReputation},\
     \
@@ -84,6 +89,10 @@ public:
     */
     static void AddJournalIndex(unsigned short pid, const char* quest, unsigned int index) noexcept;
 
+    /** Add a previously recorded dialogue response to journal changes. */
+    static void AddTopicJournalEntry(unsigned short pid, const char* topicId, const char* infoId,
+        const char* text, const char* actorName) noexcept;
+
     /**
     * \brief Set the reputation of a certain player.
     *
@@ -116,7 +125,7 @@ public:
     *
     * \param pid The player ID whose journal changes should be used.
     * \param index The index of the journalItem.
-    * \return The type (0 for ENTRY, 1 for INDEX).
+    * \return The type (0 for ENTRY, 1 for INDEX, 2 for TOPIC_ENTRY).
     */
     static int GetJournalItemType(unsigned short pid, unsigned int index) noexcept;
 
@@ -130,6 +139,11 @@ public:
     * \return The actor refId.
     */
     static const char *GetJournalItemActorRefId(unsigned short pid, unsigned int index) noexcept;
+
+    static const char *GetJournalItemTopicId(unsigned short pid, unsigned int index) noexcept;
+    static const char *GetJournalItemInfoId(unsigned short pid, unsigned int index) noexcept;
+    static const char *GetJournalItemText(unsigned short pid, unsigned int index) noexcept;
+    static const char *GetJournalItemActorName(unsigned short pid, unsigned int index) noexcept;
 
     /**
     * \brief Get the a certain player's reputation.
