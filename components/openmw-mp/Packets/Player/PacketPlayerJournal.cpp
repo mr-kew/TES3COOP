@@ -44,5 +44,12 @@ void PacketPlayerJournal::Packet(RakNet::BitStream *newBitstream, bool send)
                 RW(journalItem.timestamp.day, send);
             }
         }
+        else if (journalItem.type == JournalItem::TOPIC_ENTRY)
+        {
+            RW(journalItem.topicId, send, true);
+            RW(journalItem.infoId, send, true);
+            RW(journalItem.text, send, true);
+            RW(journalItem.actorName, send, true);
+        }
     }
 }

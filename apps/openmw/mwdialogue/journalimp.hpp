@@ -60,6 +60,9 @@ namespace MWDialogue
             void addTopic (const std::string& topicId, const std::string& infoId, const MWWorld::Ptr& actor) override;
             /// \note topicId must be lowercase
 
+            void addTopicEntry (const std::string& topicId, const std::string& infoId,
+                const std::string& text, const std::string& actorName) override;
+
             void removeLastAddedTopicResponse (const std::string& topicId, const std::string& actorName) override;
             ///< Removes the last topic response added for the given topicId and actor name.
             /// \note topicId must be lowercase

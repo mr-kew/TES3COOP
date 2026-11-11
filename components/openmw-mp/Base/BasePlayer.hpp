@@ -30,15 +30,20 @@ namespace mwmp
         enum JOURNAL_ITEM_TYPE
         {
             ENTRY = 0,
-            INDEX = 1
+            INDEX = 1,
+            TOPIC_ENTRY = 2
         };
 
         std::string actorRefId;
+        std::string topicId;
+        std::string infoId;
+        std::string text;
+        std::string actorName;
 
         bool hasTimestamp;
         mwmp::Time timestamp;
 
-        int type; // 0 - An entire entry, 1 - An index
+        int type; // 0 - An entire quest entry, 1 - An index, 2 - A dialogue topic entry
     };
 
     struct Faction
