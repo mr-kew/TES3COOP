@@ -110,15 +110,27 @@ jobs:
         run: |
           export RAKNET_ROOT="$(cygpath -m "$GITHUB_WORKSPACE/deps/raknet")"
           export LUAJIT_HOME="$(cygpath -m "$LUAJIT_HOME")"
+          export TES3MP_RELEASE_BUILD=1
           bash CI/before_script.msvc.sh -c Release -p Win64 -v 2022 -V -i "$GITHUB_WORKSPACE/install"
 
-      - name: Build and install TES3MP
+      - name: Build client and server
         shell: pwsh
         run: |
-          cmake --build MSVC2022_64 --config Release --parallel 2
+          cmake --build MSVC2022_64 --config Release --target tes3mp tes3mp-server --parallel 3
           if ($LASTEXITCODE -ne 0) { throw 'TES3MP build failed.' }
+
+      - name: Build launcher, wizard, and server browser
+        shell: pwsh
+        run: |
+          cmake --build MSVC2022_64 --config Release --target openmw-launcher openmw-wizard tes3mp-browser --parallel 3
+          if ($LASTEXITCODE -ne 0) { throw 'TES3MP support applications build failed.' }
+
+      - name: Install TES3MP
+        shell: pwsh
+        run: |
           cmake --install MSVC2022_64 --config Release
           if ($LASTEXITCODE -ne 0) { throw 'TES3MP install failed.' }
+          Copy-Item 'MSVC2022_64\Release\tes3mp-server.exe' 'install'
           Copy-Item 'deps\LuaJIT-install\bin\lua51.dll' 'install'
 
       - name: Assemble release ZIP

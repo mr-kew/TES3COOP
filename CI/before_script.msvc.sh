@@ -1012,7 +1012,19 @@ echo
 cd $DEPS_INSTALL/..
 echo
 echo "Setting up OpenMW build..."
-add_cmake_opts -DOPENMW_MP_BUILD=on
+if [ "${TES3MP_RELEASE_BUILD:-}" = "1" ]; then
+	# The portable TES3MP release needs the game, server, browser, launcher and wizard.
+	# Skip unrelated editor and developer utility targets to reduce CI build time.
+	add_cmake_opts -DBUILD_OPENCS=OFF \
+		-DBUILD_BSATOOL=OFF \
+		-DBUILD_ESMTOOL=OFF \
+		-DBUILD_NIFTEST=OFF \
+		-DBUILD_ESSIMPORTER=OFF \
+		-DBUILD_MWINIIMPORTER=OFF \
+		-DOPENMW_MP_BUILD=OFF
+else
+	add_cmake_opts -DOPENMW_MP_BUILD=on
+fi
 add_cmake_opts -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
 if [ -n "${LUAJIT_HOME:-}" ]; then
 	add_cmake_opts "-DLuaJit_INCLUDE_DIR=${LUAJIT_HOME}/include" \
