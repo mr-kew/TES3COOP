@@ -101,6 +101,7 @@ jobs:
           $prefix = Join-Path $env:GITHUB_WORKSPACE 'deps\LuaJIT-install'
           New-Item -ItemType Directory -Force -Path "$prefix\include", "$prefix\lib", "$prefix\bin" | Out-Null
           Copy-Item 'deps\LuaJIT\src\*.h' "$prefix\include"
+          Copy-Item 'deps\LuaJIT\src\lua.hpp' "$prefix\include"
           Copy-Item 'deps\LuaJIT\src\lua51.lib' "$prefix\lib"
           Copy-Item 'deps\LuaJIT\src\lua51.dll' "$prefix\bin"
           "LUAJIT_HOME=$prefix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
