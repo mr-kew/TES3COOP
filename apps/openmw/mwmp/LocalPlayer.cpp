@@ -750,7 +750,12 @@ void LocalPlayer::addJournalItems()
 
         try
         {
-            if (journalItem.type == JournalItem::ENTRY)
+            if (journalItem.type == JournalItem::TOPIC_ENTRY)
+            {
+                MWBase::Environment::get().getJournal()->addTopicEntry(journalItem.topicId,
+                    journalItem.infoId, journalItem.text, journalItem.actorName);
+            }
+            else if (journalItem.type == JournalItem::ENTRY)
             {
                 if (journalItem.hasTimestamp)
                 {
@@ -1744,6 +1749,27 @@ void LocalPlayer::sendJournalIndex(const std::string& quest, int index)
     journalItem.quest = quest;
     journalItem.index = index;
 
+    journalChanges.push_back(journalItem);
+
+    getNetworking()->getPlayerPacket(ID_PLAYER_JOURNAL)->setPlayer(this);
+    getNetworking()->getPlayerPacket(ID_PLAYER_JOURNAL)->Send();
+}
+
+void LocalPlayer::sendTopicJournalEntry(const std::string& topicId, const std::string& infoId,
+    const std::string& text, const std::string& actorName)
+{
+    journalChanges.clear();
+
+    mwmp::JournalItem journalItem;
+    journalItem.type = JournalItem::TOPIC_ENTRY;
+    journalItem.quest.clear();
+    journalItem.index = 0;
+    journalItem.actorRefId.clear();
+    journalItem.hasTimestamp = false;
+    journalItem.topicId = topicId;
+    journalItem.infoId = infoId;
+    journalItem.text = text;
+    journalItem.actorName = actorName;
     journalChanges.push_back(journalItem);
 
     getNetworking()->getPlayerPacket(ID_PLAYER_JOURNAL)->setPlayer(this);

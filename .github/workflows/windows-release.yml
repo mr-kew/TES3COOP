@@ -1,0 +1,175 @@
+name: Build Windows TES3MP release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - topic-journal-release
+    tags:
+      - "topic-journal-*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Check out TES3MP
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Check out matching CrabNet
+        uses: actions/checkout@v7
+        with:
+          repository: TES3MP/CrabNet
+          ref: 19e66190e83f53bcdcbcd6513238ed2e54878a21
+          path: deps/CrabNet
+
+      - name: Check out matching CoreScripts
+        uses: actions/checkout@v7
+        with:
+          repository: TES3MP/CoreScripts
+          ref: 0.8.1
+          path: deps/CoreScripts
+
+      - name: Check out LuaJIT
+        uses: actions/checkout@v7
+        with:
+          repository: LuaJIT/LuaJIT
+          ref: v2.1
+          path: deps/LuaJIT
+
+      - name: Set up compatible CMake
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install CMake 3.31
+        shell: pwsh
+        run: python -m pip install cmake==3.31.10
+
+      - name: Ensure the VS 2019-compatible toolset is available
+        shell: pwsh
+        run: |
+          $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installPath = & $vswhere -latest -products '*' -property installationPath
+          if (-not $installPath) { throw 'Visual Studio installation was not found.' }
+          $toolset = & $vswhere -products '*' -requires Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64 -property installationPath
+          if (-not $toolset) {
+            & $installer modify --installPath $installPath --add Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64 --quiet --norestart --wait
+            if ($LASTEXITCODE -ne 0) { throw "Installing the v142 toolset failed with exit code $LASTEXITCODE." }
+          }
+
+      - name: Build CrabNet
+        shell: pwsh
+        run: |
+          $prefix = Join-Path $env:GITHUB_WORKSPACE 'deps\raknet'
+          cmake -S deps/CrabNet -B deps/CrabNet/build -A x64 -T v142 `
+            -DCRABNET_ENABLE_DLL=OFF `
+            -DCRABNET_ENABLE_STATIC=ON `
+            "-DCMAKE_INSTALL_PREFIX=$prefix"
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet configuration failed.' }
+          cmake --build deps/CrabNet/build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet build failed.' }
+          cmake --install deps/CrabNet/build --config Release
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet install failed.' }
+          cmake --build deps/CrabNet/build --config Debug --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet Debug build failed.' }
+          cmake --install deps/CrabNet/build --config Debug
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet Debug install failed.' }
+
+      - name: Build LuaJIT
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installPath = & $vswhere -latest -products '*' -property installationPath
+          $devCmd = Join-Path $installPath 'Common7\Tools\VsDevCmd.bat'
+          $luaSrc = (Resolve-Path 'deps\LuaJIT\src').Path
+          @"
+          call "$devCmd" -no_logo -arch=amd64 -host_arch=amd64 -vcvars_ver=14.2
+          if errorlevel 1 exit /b %errorlevel%
+          cd /d "$luaSrc"
+          call msvcbuild.bat
+          exit /b %errorlevel%
+          "@ | Set-Content build-luajit.cmd -Encoding ascii
+          & $env:ComSpec /d /c build-luajit.cmd
+          if ($LASTEXITCODE -ne 0) { throw 'LuaJIT build failed.' }
+
+          $prefix = Join-Path $env:GITHUB_WORKSPACE 'deps\LuaJIT-install'
+          New-Item -ItemType Directory -Force -Path "$prefix\include", "$prefix\lib", "$prefix\bin" | Out-Null
+          Copy-Item 'deps\LuaJIT\src\*.h' "$prefix\include"
+          Copy-Item 'deps\LuaJIT\src\lua.hpp' "$prefix\include"
+          Copy-Item 'deps\LuaJIT\src\lua51.lib' "$prefix\lib"
+          Copy-Item 'deps\LuaJIT\src\lua51.dll' "$prefix\bin"
+          "LUAJIT_HOME=$prefix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Configure TES3MP
+        shell: bash
+        run: |
+          export RAKNET_ROOT="$(cygpath -m "$GITHUB_WORKSPACE/deps/raknet")"
+          export LUAJIT_HOME="$(cygpath -m "$LUAJIT_HOME")"
+          export TES3MP_RELEASE_BUILD=1
+          bash CI/before_script.msvc.sh -c Release -p Win64 -v 2022 -V -i "$GITHUB_WORKSPACE/install"
+
+      - name: Build client and server
+        shell: pwsh
+        run: |
+          cmake --build MSVC2022_64 --config Release --target tes3mp tes3mp-server --parallel 3
+          if ($LASTEXITCODE -ne 0) { throw 'TES3MP build failed.' }
+
+      - name: Build launcher, wizard, and server browser
+        shell: pwsh
+        run: |
+          cmake --build MSVC2022_64 --config Release --target openmw-launcher openmw-wizard tes3mp-browser --parallel 3
+          if ($LASTEXITCODE -ne 0) { throw 'TES3MP support applications build failed.' }
+
+      - name: Install TES3MP
+        shell: pwsh
+        run: |
+          cmake --install MSVC2022_64 --config Release
+          if ($LASTEXITCODE -ne 0) { throw 'TES3MP install failed.' }
+          Copy-Item 'MSVC2022_64\Release\tes3mp-server.exe' 'install'
+          Copy-Item 'deps\LuaJIT-install\bin\lua51.dll' 'install'
+
+      - name: Assemble release ZIP
+        shell: pwsh
+        run: |
+          $serverDir = Join-Path $env:GITHUB_WORKSPACE 'install\server'
+          New-Item -ItemType Directory -Force -Path $serverDir | Out-Null
+          foreach ($folder in @('data', 'lib', 'scripts')) {
+            Copy-Item "deps\CoreScripts\$folder" $serverDir -Recurse
+          }
+
+          $customDir = Join-Path $serverDir 'scripts\custom'
+          New-Item -ItemType Directory -Force -Path $customDir | Out-Null
+          Copy-Item server-scripts/custom/topicJournalPersistence.lua $customDir
+
+          $customScripts = Join-Path $serverDir 'scripts\customScripts.lua'
+          if (-not (Test-Path $customScripts)) { throw 'CoreScripts customScripts.lua was not found.' }
+          $requireLine = 'require("custom/topicJournalPersistence")'
+          if (-not (Select-String -Path $customScripts -SimpleMatch $requireLine -Quiet)) {
+            Add-Content -Path $customScripts -Value $requireLine
+          }
+
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "manual-$($env:GITHUB_SHA.Substring(0, 7))" }
+          $zip = "tes3mp.Win64.release.$tag.zip"
+          Compress-Archive -Path 'install\*' -DestinationPath $zip -CompressionLevel Optimal
+
+      - name: Upload downloadable build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: TES3MP-Windows-x64
+          path: tes3mp.Win64.release.*.zip
+          if-no-files-found: error
+
+      - name: Create draft GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          name: TES3MP ${{ github.ref_name }}
+          draft: true
+          generate_release_notes: true
+          files: tes3mp.Win64.release.*.zip

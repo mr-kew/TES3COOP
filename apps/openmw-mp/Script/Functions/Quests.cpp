@@ -72,6 +72,25 @@ void QuestFunctions::AddJournalIndex(unsigned short pid, const char* quest, unsi
     player->journalChanges.push_back(journalItem);
 }
 
+void QuestFunctions::AddTopicJournalEntry(unsigned short pid, const char* topicId, const char* infoId,
+    const char* text, const char* actorName) noexcept
+{
+    Player *player;
+    GET_PLAYER(pid, player, );
+
+    mwmp::JournalItem journalItem;
+    journalItem.type = JournalItem::TOPIC_ENTRY;
+    journalItem.quest.clear();
+    journalItem.index = 0;
+    journalItem.actorRefId.clear();
+    journalItem.hasTimestamp = false;
+    journalItem.topicId = topicId;
+    journalItem.infoId = infoId;
+    journalItem.text = text;
+    journalItem.actorName = actorName;
+    player->journalChanges.push_back(journalItem);
+}
+
 void QuestFunctions::SetReputation(unsigned short pid, int value) noexcept
 {
     Player *player;
@@ -113,6 +132,42 @@ const char *QuestFunctions::GetJournalItemActorRefId(unsigned short pid, unsigne
     GET_PLAYER(pid, player, 0);
 
     return player->journalChanges.at(index).actorRefId.c_str();
+}
+
+const char *QuestFunctions::GetJournalItemTopicId(unsigned short pid, unsigned int index) noexcept
+{
+    Player *player;
+    GET_PLAYER(pid, player, "");
+    if (index >= player->journalChanges.size())
+        return "invalid";
+    return player->journalChanges.at(index).topicId.c_str();
+}
+
+const char *QuestFunctions::GetJournalItemInfoId(unsigned short pid, unsigned int index) noexcept
+{
+    Player *player;
+    GET_PLAYER(pid, player, "");
+    if (index >= player->journalChanges.size())
+        return "invalid";
+    return player->journalChanges.at(index).infoId.c_str();
+}
+
+const char *QuestFunctions::GetJournalItemText(unsigned short pid, unsigned int index) noexcept
+{
+    Player *player;
+    GET_PLAYER(pid, player, "");
+    if (index >= player->journalChanges.size())
+        return "invalid";
+    return player->journalChanges.at(index).text.c_str();
+}
+
+const char *QuestFunctions::GetJournalItemActorName(unsigned short pid, unsigned int index) noexcept
+{
+    Player *player;
+    GET_PLAYER(pid, player, "");
+    if (index >= player->journalChanges.size())
+        return "invalid";
+    return player->journalChanges.at(index).actorName.c_str();
 }
 
 int QuestFunctions::GetReputation(unsigned short pid) noexcept
