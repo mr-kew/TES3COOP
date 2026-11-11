@@ -1,3 +1,6 @@
+> [!WARNING]
+> **!!! Custom untested coop patch for TES3MP, might not work!**
+
 TES3MP
 ======
 
