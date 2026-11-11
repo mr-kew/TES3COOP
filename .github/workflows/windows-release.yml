@@ -76,6 +76,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'CrabNet build failed.' }
           cmake --install deps/CrabNet/build --config Release
           if ($LASTEXITCODE -ne 0) { throw 'CrabNet install failed.' }
+          cmake --build deps/CrabNet/build --config Debug --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet Debug build failed.' }
+          cmake --install deps/CrabNet/build --config Debug
+          if ($LASTEXITCODE -ne 0) { throw 'CrabNet Debug install failed.' }
 
       - name: Build LuaJIT
         shell: pwsh
