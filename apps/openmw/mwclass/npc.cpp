@@ -616,7 +616,8 @@ namespace MWClass
         if(otherstats.isDead()) // Can't hit dead actors
             return;
 
-        if(ptr == MWMechanics::getPlayer())
+        const bool friendlyFireDisabled = MechanicsHelper::isFriendlyFireDisabled(victim, ptr);
+        if(ptr == MWMechanics::getPlayer() && !friendlyFireDisabled)
             MWBase::Environment::get().getWindowManager()->setEnemy(victim);
 
         int weapskill = ESM::Skill::HandToHand;
@@ -706,7 +707,7 @@ namespace MWClass
 
             const MWMechanics::AiSequence& seq = victim.getClass().getCreatureStats(victim).getAiSequence();
 
-            bool unaware = !seq.isInCombat()
+            bool unaware = !friendlyFireDisabled && !seq.isInCombat()
                     && !MWBase::Environment::get().getMechanicsManager()->awarenessCheck(ptr, victim);
             if(unaware)
             {
@@ -727,7 +728,9 @@ namespace MWClass
             Track whether the strike enchantment is successful for attacks by the
             LocalPlayer or LocalActors
         */
-        bool appliedEnchantment = MWMechanics::applyOnStrikeEnchantment(ptr, victim, weapon, hitPosition);
+        bool appliedEnchantment = false;
+        if (!friendlyFireDisabled)
+            appliedEnchantment = MWMechanics::applyOnStrikeEnchantment(ptr, victim, weapon, hitPosition);
 
         if (localAttack)
             localAttack->applyWeaponEnchantment = appliedEnchantment;
@@ -735,15 +738,20 @@ namespace MWClass
             End of tes3mp change (minor)
         */
 
-        MWMechanics::applyElementalShields(ptr, victim);
-
-        if (MWMechanics::blockMeleeAttack(ptr, victim, weapon, damage, attackStrength))
+        if (friendlyFireDisabled)
             damage = 0;
+        else
+        {
+            MWMechanics::applyElementalShields(ptr, victim);
 
-        if (victim == MWMechanics::getPlayer() && MWBase::Environment::get().getWorld()->getGodModeState())
-            damage = 0;
+            if (MWMechanics::blockMeleeAttack(ptr, victim, weapon, damage, attackStrength))
+                damage = 0;
 
-        MWMechanics::diseaseContact(victim, ptr);
+            if (victim == MWMechanics::getPlayer() && MWBase::Environment::get().getWorld()->getGodModeState())
+                damage = 0;
+
+            MWMechanics::diseaseContact(victim, ptr);
+        }
 
         othercls.onHit(victim, damage, healthdmg, weapon, ptr, hitPosition, true);
     }

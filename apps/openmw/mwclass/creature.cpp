@@ -359,6 +359,8 @@ namespace MWClass
             return;
         }
 
+        const bool friendlyFireDisabled = MechanicsHelper::isFriendlyFireDisabled(victim, ptr);
+
         int min,max;
         switch (type)
         {
@@ -404,7 +406,9 @@ namespace MWClass
                 Track whether the strike enchantment is successful for attacks by the
                 LocalPlayer or LocalActors
             */
-            bool appliedEnchantment = MWMechanics::applyOnStrikeEnchantment(ptr, victim, weapon, hitPosition);
+            bool appliedEnchantment = false;
+            if (!friendlyFireDisabled)
+                appliedEnchantment = MWMechanics::applyOnStrikeEnchantment(ptr, victim, weapon, hitPosition);
 
             if (localAttack)
                 localAttack->applyWeaponEnchantment = appliedEnchantment;
@@ -417,12 +421,17 @@ namespace MWClass
             MWMechanics::getHandToHandDamage(ptr, victim, damage, healthdmg, attackStrength);
         }
 
-        MWMechanics::applyElementalShields(ptr, victim);
-
-        if (MWMechanics::blockMeleeAttack(ptr, victim, weapon, damage, attackStrength))
+        if (friendlyFireDisabled)
             damage = 0;
+        else
+        {
+            MWMechanics::applyElementalShields(ptr, victim);
 
-        MWMechanics::diseaseContact(victim, ptr);
+            if (MWMechanics::blockMeleeAttack(ptr, victim, weapon, damage, attackStrength))
+                damage = 0;
+
+            MWMechanics::diseaseContact(victim, ptr);
+        }
 
         victim.getClass().onHit(victim, damage, healthdmg, weapon, ptr, hitPosition, true);
     }

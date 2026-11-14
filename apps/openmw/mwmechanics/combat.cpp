@@ -257,11 +257,12 @@ namespace MWMechanics
         const MWWorld::Store<ESM::GameSetting> &gmst = world->getStore().get<ESM::GameSetting>();
 
         bool validVictim = !victim.isEmpty() && victim.getClass().isActor();
+        const bool friendlyFireDisabled = validVictim && MechanicsHelper::isFriendlyFireDisabled(victim, attacker);
 
         float damage = 0.f;
         if (validVictim)
         {
-            if (attacker == getPlayer())
+            if (attacker == getPlayer() && !friendlyFireDisabled)
                 MWBase::Environment::get().getWindowManager()->setEnemy(victim);
 
             int weaponSkill = ESM::Skill::Marksman;
@@ -319,7 +320,7 @@ namespace MWMechanics
             bool unaware = attacker == getPlayer() && !sequence.isInCombat()
                 && !MWBase::Environment::get().getMechanicsManager()->awarenessCheck(attacker, victim);
             bool knockedDown = victim.getClass().getCreatureStats(victim).getKnockedDown();
-            if (knockedDown || unaware)
+            if (!friendlyFireDisabled && (knockedDown || unaware))
             {
                 damage *= gmst.find("fCombatKODamageMult")->mValue.getFloat();
                 if (!knockedDown)
@@ -330,7 +331,11 @@ namespace MWMechanics
         reduceWeaponCondition(damage, validVictim, weapon, attacker);
 
         // Apply "On hit" effect of the projectile
-        bool appliedEnchantment = applyOnStrikeEnchantment(attacker, victim, projectile, hitPosition, true);
+        bool appliedEnchantment = false;
+        if (!friendlyFireDisabled)
+            appliedEnchantment = applyOnStrikeEnchantment(attacker, victim, projectile, hitPosition, true);
+        else
+            damage = 0.f;
 
         /*
             Start of tes3mp change (minor)
@@ -347,7 +352,7 @@ namespace MWMechanics
         if (validVictim)
         {
             // Non-enchanted arrows shot at enemies have a chance to turn up in their inventory
-            if (victim != getPlayer() && !appliedEnchantment)
+            if (!friendlyFireDisabled && victim != getPlayer() && !appliedEnchantment)
             {
                 float fProjectileThrownStoreChance = gmst.find("fProjectileThrownStoreChance")->mValue.getFloat();
                 if (Misc::Rng::rollProbability() < fProjectileThrownStoreChance / 100.f)

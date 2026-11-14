@@ -146,12 +146,14 @@ jobs:
 
           $customDir = Join-Path $serverDir 'scripts\custom'
           New-Item -ItemType Directory -Force -Path $customDir | Out-Null
+          Copy-Item server-scripts/custom/friendlyFire.lua $customDir
           Copy-Item server-scripts/custom/topicJournalPersistence.lua $customDir
           Copy-Item server-scripts/custom/npcDispositionPersistence.lua $customDir
 
           $customScripts = Join-Path $serverDir 'scripts\customScripts.lua'
           if (-not (Test-Path $customScripts)) { throw 'CoreScripts customScripts.lua was not found.' }
           foreach ($requireLine in @(
+            'require("custom/friendlyFire")',
             'require("custom/topicJournalPersistence")',
             'require("custom/npcDispositionPersistence")'
           )) {
