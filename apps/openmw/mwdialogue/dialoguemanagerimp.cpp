@@ -30,6 +30,8 @@
 #include "../mwmp/CellController.hpp"
 #include "../mwmp/LocalPlayer.hpp"
 #include "../mwmp/LocalActor.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/ObjectList.hpp"
 /*
     End of tes3mp addition
 */
@@ -458,6 +460,8 @@ namespace MWDialogue
 
             MWMechanics::NpcStats& npcStats = mActor.getClass().getNpcStats(mActor);
             npcStats.setBaseDisposition(static_cast<int>(npcStats.getBaseDisposition() + mPermanentDispositionChange));
+
+            mwmp::sendNpcDisposition(mActor);
         }
         mPermanentDispositionChange = 0;
         mTemporaryDispositionChange = 0;

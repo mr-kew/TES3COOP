@@ -21,6 +21,7 @@
 #include "../mwmp/LocalPlayer.hpp"
 #include "../mwmp/PlayerList.hpp"
 #include "../mwmp/CellController.hpp"
+#include "../mwmp/ObjectList.hpp"
 /*
     End of tes3mp addition
 */
@@ -1433,6 +1434,8 @@ namespace MWMechanics
                     observerStats.setAiSetting(CreatureStats::AI_Fight, observerFightRating + static_cast<int>(fightTerm));
 
                     observerStats.setBaseDisposition(observerStats.getBaseDisposition() + static_cast<int>(dispTerm));
+                    if (actor.getClass().isNpc())
+                        mwmp::sendNpcDisposition(actor);
 
                     // Set the crime ID, which we will use to calm down participants
                     // once the bounty has been paid.

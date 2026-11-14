@@ -5,6 +5,8 @@
 #include "../mwgui/itemmodel.hpp"
 #include "../mwworld/worldimp.hpp"
 #include <RakNetTypes.h>
+#include <map>
+#include <tuple>
 
 namespace mwmp
 {
@@ -45,6 +47,7 @@ namespace mwmp
         void setDoorDestinations(MWWorld::CellStore* cellStore);
         void runConsoleCommands(MWWorld::CellStore* cellStore);
         void makeDialogueChoices(MWWorld::CellStore* cellStore);
+        void applyPendingNpcDispositions(MWWorld::CellStore* cellStore);
 
         void setClientLocals(MWWorld::CellStore* cellStore);
         void setMemberShorts();
@@ -64,6 +67,7 @@ namespace mwmp
         void addObjectSpawn(const MWWorld::Ptr& ptr, const MWWorld::Ptr& master, std::string spellId, int effectId, float duration);
         void addObjectLock(const MWWorld::Ptr& ptr, int lockLevel);
         void addObjectDialogueChoice(const MWWorld::Ptr& ptr, std::string dialogueChoice);
+        void addNpcDisposition(const MWWorld::Ptr& ptr, int disposition);
         void addObjectMiscellaneous(const MWWorld::Ptr& ptr, unsigned int goldPool, float lastGoldRestockHour, int lastGoldRestockDay);
         void addObjectTrap(const MWWorld::Ptr& ptr, const ESM::Position& pos, bool isDisarmed);
         void addObjectScale(const MWWorld::Ptr& ptr, float scale);
@@ -102,8 +106,16 @@ namespace mwmp
 
     private:
         Networking *getNetworking();
+        void ensurePendingNpcDispositionOwner();
+
+        std::map<std::tuple<std::string, unsigned int, unsigned int>, BaseObject> mPendingNpcDispositions;
+        RakNet::RakNetGUID mPendingNpcDispositionOwner;
+        bool mHasPendingNpcDispositionOwner = false;
 
     };
+
+    /// Send the NPC's current base disposition to the server for this player's save.
+    void sendNpcDisposition(const MWWorld::Ptr& ptr);
 }
 
 #endif //OPENMW_OBJECTLIST_HPP

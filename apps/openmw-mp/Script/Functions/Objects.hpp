@@ -32,6 +32,7 @@
     {"GetObjectDoorState",                    ObjectFunctions::GetObjectDoorState},\
     {"GetObjectLockLevel",                    ObjectFunctions::GetObjectLockLevel},\
     {"GetObjectDialogueChoiceType",           ObjectFunctions::GetObjectDialogueChoiceType},\
+    {"GetObjectDialogueChoiceDisposition",     ObjectFunctions::GetObjectDialogueChoiceDisposition},\
     {"GetObjectDialogueChoiceTopic",          ObjectFunctions::GetObjectDialogueChoiceTopic},\
     {"GetObjectGoldPool",                     ObjectFunctions::GetObjectGoldPool},\
     {"GetObjectLastGoldRestockHour",          ObjectFunctions::GetObjectLastGoldRestockHour},\
@@ -108,6 +109,7 @@
     {"SetObjectState",                        ObjectFunctions::SetObjectState},\
     {"SetObjectLockLevel",                    ObjectFunctions::SetObjectLockLevel},\
     {"SetObjectDialogueChoiceType",           ObjectFunctions::SetObjectDialogueChoiceType},\
+    {"SetObjectDialogueChoiceDisposition",    ObjectFunctions::SetObjectDialogueChoiceDisposition},\
     {"SetObjectDialogueChoiceTopic",          ObjectFunctions::SetObjectDialogueChoiceTopic},\
     {"SetObjectGoldPool",                     ObjectFunctions::SetObjectGoldPool},\
     {"SetObjectLastGoldRestockHour",          ObjectFunctions::SetObjectLastGoldRestockHour},\
@@ -403,6 +405,7 @@ public:
     * \return The dialogue choice type.
     */
     static unsigned int GetObjectDialogueChoiceType(unsigned int index) noexcept;
+    static int GetObjectDialogueChoiceDisposition(unsigned int index) noexcept;
 
     /**
     * \brief Get the dialogue choice topic for the object at a certain index in the read object list.
@@ -1018,6 +1021,7 @@ public:
     * \return void
     */
     static void SetObjectDialogueChoiceType(unsigned int dialogueChoiceType) noexcept;
+    static void SetObjectDialogueChoiceDisposition(int disposition) noexcept;
 
     /**
     * \brief Set the dialogue choice topic for the temporary object stored on the server.

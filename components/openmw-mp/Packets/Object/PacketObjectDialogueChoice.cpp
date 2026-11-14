@@ -16,6 +16,8 @@ void PacketObjectDialogueChoice::Object(BaseObject& baseObject, bool send)
 
     if (baseObject.dialogueChoiceType == DialogueChoiceType::TOPIC)
         RW(baseObject.topicId, send, true);
+    else if (baseObject.dialogueChoiceType == DialogueChoiceType::NPC_DISPOSITION)
+        RW(baseObject.npcDisposition, send);
 
     RW(baseObject.guiId, send);
 }

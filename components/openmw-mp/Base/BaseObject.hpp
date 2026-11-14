@@ -44,6 +44,7 @@ namespace mwmp
         unsigned char dialogueChoiceType;
         std::string topicId;
         int guiId;
+        int npcDisposition = 0;
 
         std::string soundId;
         float volume;

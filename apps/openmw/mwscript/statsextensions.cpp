@@ -9,6 +9,8 @@
 */
 #include "../mwmp/Main.hpp"
 #include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/ObjectList.hpp"
 /*
     End of tes3mp addition
 */
@@ -816,8 +818,11 @@ namespace MWScript
                     runtime.pop();
 
                     if (ptr.getClass().isNpc())
+                    {
                         ptr.getClass().getNpcStats (ptr).setBaseDisposition
                             (ptr.getClass().getNpcStats (ptr).getBaseDisposition() + value);
+                        mwmp::sendNpcDisposition(ptr);
+                    }
 
                     // else: must not throw exception (used by an Almalexia dialogue script)
                 }
@@ -836,7 +841,10 @@ namespace MWScript
                     runtime.pop();
 
                     if (ptr.getClass().isNpc())
+                    {
                         ptr.getClass().getNpcStats (ptr).setBaseDisposition (value);
+                        mwmp::sendNpcDisposition(ptr);
+                    }
                 }
         };
 

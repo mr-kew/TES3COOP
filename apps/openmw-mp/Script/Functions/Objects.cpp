@@ -159,6 +159,11 @@ unsigned int ObjectFunctions::GetObjectDialogueChoiceType(unsigned int index) no
     return readObjectList->baseObjects.at(index).dialogueChoiceType;
 }
 
+int ObjectFunctions::GetObjectDialogueChoiceDisposition(unsigned int index) noexcept
+{
+    return readObjectList->baseObjects.at(index).npcDisposition;
+}
+
 const char* ObjectFunctions::GetObjectDialogueChoiceTopic(unsigned int index) noexcept
 {
     return readObjectList->baseObjects.at(index).topicId.c_str();
@@ -508,6 +513,11 @@ void ObjectFunctions::SetObjectLockLevel(int lockLevel) noexcept
 void ObjectFunctions::SetObjectDialogueChoiceType(unsigned int dialogueChoiceType) noexcept
 {
     tempObject.dialogueChoiceType = dialogueChoiceType;
+}
+
+void ObjectFunctions::SetObjectDialogueChoiceDisposition(int disposition) noexcept
+{
+    tempObject.npcDisposition = disposition;
 }
 
 void ObjectFunctions::SetObjectDialogueChoiceTopic(const char* topic) noexcept

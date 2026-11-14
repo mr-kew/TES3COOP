@@ -147,12 +147,24 @@ jobs:
           $customDir = Join-Path $serverDir 'scripts\custom'
           New-Item -ItemType Directory -Force -Path $customDir | Out-Null
           Copy-Item server-scripts/custom/topicJournalPersistence.lua $customDir
+          Copy-Item server-scripts/custom/npcDispositionPersistence.lua $customDir
 
           $customScripts = Join-Path $serverDir 'scripts\customScripts.lua'
           if (-not (Test-Path $customScripts)) { throw 'CoreScripts customScripts.lua was not found.' }
-          $requireLine = 'require("custom/topicJournalPersistence")'
-          if (-not (Select-String -Path $customScripts -SimpleMatch $requireLine -Quiet)) {
-            Add-Content -Path $customScripts -Value $requireLine
+          foreach ($requireLine in @(
+            'require("custom/topicJournalPersistence")',
+            'require("custom/npcDispositionPersistence")'
+          )) {
+            if (-not (Select-String -Path $customScripts -SimpleMatch $requireLine -Quiet)) {
+              Add-Content -Path $customScripts -Value $requireLine
+            }
+          }
+
+          $configFile = Join-Path $serverDir 'scripts\config.lua'
+          if (-not (Test-Path $configFile)) { throw 'CoreScripts config.lua was not found.' }
+          $dispositionSetting = 'config.persistNpcDispositions = true'
+          if (-not (Select-String -Path $configFile -SimpleMatch $dispositionSetting -Quiet)) {
+            Add-Content -Path $configFile -Value $dispositionSetting
           }
 
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "manual-$($env:GITHUB_SHA.Substring(0, 7))" }

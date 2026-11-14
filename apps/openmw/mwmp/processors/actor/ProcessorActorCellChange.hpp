@@ -5,6 +5,8 @@
 #include "../ActorProcessor.hpp"
 #include "apps/openmw/mwmp/Main.hpp"
 #include "apps/openmw/mwmp/CellController.hpp"
+#include "apps/openmw/mwmp/Networking.hpp"
+#include "apps/openmw/mwmp/ObjectList.hpp"
 
 namespace mwmp
 {
@@ -19,6 +21,11 @@ namespace mwmp
         virtual void Do(ActorPacket &packet, ActorList &actorList)
         {
             Main::get().getCellController()->readCellChange(actorList);
+            for (const auto& actor : actorList.baseActors)
+            {
+                MWWorld::CellStore* cellStore = Main::get().getCellController()->getCellStore(actor.cell);
+                Main::get().getNetworking()->getObjectList()->applyPendingNpcDispositions(cellStore);
+            }
         }
     };
 }

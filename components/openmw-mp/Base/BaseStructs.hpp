@@ -24,7 +24,8 @@ namespace mwmp
             SPELLMAKING,
             ENCHANTING,
             TRAINING,
-            REPAIR
+            REPAIR,
+            NPC_DISPOSITION
         };
     }
 

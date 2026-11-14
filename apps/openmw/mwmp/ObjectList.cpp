@@ -1005,11 +1005,29 @@ void ObjectList::runConsoleCommands(MWWorld::CellStore* cellStore)
 
 void ObjectList::makeDialogueChoices(MWWorld::CellStore* cellStore)
 {
+    ensurePendingNpcDispositionOwner();
+
     for (const auto& baseObject : baseObjects)
     {
         LOG_APPEND(TimedLog::LOG_VERBOSE, "- cellRef: %s %i-%i", baseObject.refId.c_str(), baseObject.refNum, baseObject.mpNum);
         
         MWWorld::Ptr ptrFound = cellStore->searchExact(baseObject.refNum, baseObject.mpNum, baseObject.refId);
+
+        if (baseObject.dialogueChoiceType == DialogueChoiceType::NPC_DISPOSITION)
+        {
+            const auto key = std::make_tuple(baseObject.refId, baseObject.refNum, baseObject.mpNum);
+            if (ptrFound)
+            {
+                mPendingNpcDispositions.erase(key);
+                if (ptrFound.getClass().isNpc())
+                    ptrFound.getClass().getNpcStats(ptrFound).setBaseDisposition(baseObject.npcDisposition);
+            }
+            else if (!ptrFound)
+            {
+                mPendingNpcDispositions[key] = baseObject;
+            }
+            continue;
+        }
 
         if (ptrFound)
         {
@@ -1072,6 +1090,40 @@ void ObjectList::makeDialogueChoices(MWWorld::CellStore* cellStore)
                     ptrFound.getCellRef().getRefId().c_str(), ptrFound.getCellRef().getRefNum(), ptrFound.getCellRef().getMpNum());
             }
         }
+    }
+}
+
+void ObjectList::applyPendingNpcDispositions(MWWorld::CellStore* cellStore)
+{
+    ensurePendingNpcDispositionOwner();
+
+    if (cellStore == nullptr)
+        return;
+
+    for (auto iter = mPendingNpcDispositions.begin(); iter != mPendingNpcDispositions.end();)
+    {
+        const BaseObject& baseObject = iter->second;
+        MWWorld::Ptr ptrFound = cellStore->searchExact(baseObject.refNum, baseObject.mpNum, baseObject.refId);
+        if (!ptrFound)
+        {
+            ++iter;
+            continue;
+        }
+
+        if (ptrFound.getClass().isNpc())
+            ptrFound.getClass().getNpcStats(ptrFound).setBaseDisposition(baseObject.npcDisposition);
+        iter = mPendingNpcDispositions.erase(iter);
+    }
+}
+
+void ObjectList::ensurePendingNpcDispositionOwner()
+{
+    const RakNet::RakNetGUID owner = Main::get().getLocalPlayer()->guid;
+    if (!mHasPendingNpcDispositionOwner || mPendingNpcDispositionOwner != owner)
+    {
+        mPendingNpcDispositions.clear();
+        mPendingNpcDispositionOwner = owner;
+        mHasPendingNpcDispositionOwner = true;
     }
 }
 
@@ -1363,6 +1415,30 @@ void ObjectList::addObjectDialogueChoice(const MWWorld::Ptr& ptr, std::string di
     }
 
     addBaseObject(baseObject);
+}
+
+void ObjectList::addNpcDisposition(const MWWorld::Ptr& ptr, int disposition)
+{
+    if (!ptr || !ptr.getClass().isNpc())
+        return;
+
+    cell = *ptr.getCell()->getCell();
+    mwmp::BaseObject baseObject = getBaseObjectFromPtr(ptr);
+    baseObject.dialogueChoiceType = DialogueChoiceType::NPC_DISPOSITION;
+    baseObject.npcDisposition = disposition;
+    addBaseObject(baseObject);
+}
+
+void mwmp::sendNpcDisposition(const MWWorld::Ptr& ptr)
+{
+    if (!mwmp::Main::isInitialized() || !ptr || !ptr.getClass().isNpc())
+        return;
+
+    ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+    objectList->reset();
+    objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+    objectList->addNpcDisposition(ptr, ptr.getClass().getNpcStats(ptr).getBaseDisposition());
+    objectList->sendObjectDialogueChoice();
 }
 
 void ObjectList::addObjectMiscellaneous(const MWWorld::Ptr& ptr, unsigned int goldPool, float lastGoldRestockHour, int lastGoldRestockDay)
