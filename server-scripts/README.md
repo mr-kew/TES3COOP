@@ -2,18 +2,35 @@
 
 ## Friendly fire
 
-The `friendly fire` game setting controls damage between allied players. It defaults
-to `true` to preserve existing behavior. To disable it for a player from a server
-script, set the value and send that player's settings when they connect:
+Friendly fire is configured as a server multiplayer rule in CoreScripts, separate
+from the general `config.gameSettings` list. In
+`CoreScripts/scripts/config.lua`, add:
 
 ```lua
-tes3mp.SetGameSettingValue(pid, "friendly fire", "false")
-tes3mp.SendSettings(pid, false, false)
+config.friendlyFire = false
 ```
 
-Set it to `"true"` to allow allied damage. Apply the same value to every player so
-all clients use a consistent rule. The check uses the attacker's ally list, matching
-the existing one-way ally relationship.
+`false` prevents allied players from damaging each other; `true` allows the damage.
+The default is `true`. Remove any `friendly fire` entry you previously added to
+`config.gameSettings` so there is only one setting to maintain.
+
+Install the adapter that sends this server rule to connecting clients:
+
+1. Copy `custom/friendlyFire.lua` into `CoreScripts/scripts/custom/`.
+2. Add `require("custom/friendlyFire")` to `CoreScripts/scripts/customScripts.lua`.
+3. Restart the server after changing the config or script.
+
+Players must form a mutual alliance for the rule to apply: one uses `/invite <pid>`
+and the invited player accepts with `/join <inviter-pid>`. The alliance is saved
+in the players' server data. Player IDs appear beside names in chat and can change
+between sessions.
+
+Every player must use a TES3MP client build containing this change. The server
+sends the configured value through the existing game-settings packet; the C++
+server and packet format do not need changes. The client filters allied melee and
+ranged hits, on-hit enchantments, and direct or area spell effects. Non-allied PvP
+remains enabled when `config.friendlyFire` is `false`. It also blocks attacks by a
+player's summoned creatures against that player's allies.
 
 ## Topic journal persistence plugin
 
