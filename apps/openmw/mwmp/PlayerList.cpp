@@ -97,6 +97,26 @@ DedicatedPlayer* PlayerList::getPlayer(int actorId)
     return nullptr;
 }
 
+MWWorld::Ptr PlayerList::getSummonOwner(int summonActorId)
+{
+    for (auto& playerEntry : playerList)
+    {
+        DedicatedPlayer* player = playerEntry.second;
+        if (player == nullptr || player->getPtr().mRef == nullptr)
+            continue;
+
+        MWWorld::Ptr playerPtr = player->getPtr();
+        const auto& summonedCreatures = playerPtr.getClass().getCreatureStats(playerPtr).getSummonedCreatureMap();
+        for (const auto& summon : summonedCreatures)
+        {
+            if (summon.second == summonActorId)
+                return playerPtr;
+        }
+    }
+
+    return MWWorld::Ptr();
+}
+
 std::vector<RakNet::RakNetGUID> PlayerList::getPlayersInCell(const ESM::Cell& cell)
 {
     std::vector<RakNet::RakNetGUID> playersInCell;

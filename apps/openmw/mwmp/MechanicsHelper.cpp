@@ -346,7 +346,36 @@ bool MechanicsHelper::isTeamMember(const MWWorld::Ptr& playerChecked, const MWWo
 
 bool MechanicsHelper::isFriendlyFireDisabled(const MWWorld::Ptr& victim, const MWWorld::Ptr& attacker)
 {
-    return !Settings::Manager::getBool("friendly fire", "Game") && isTeamMember(victim, attacker);
+    if (Settings::Manager::getBool("friendly fire", "Game"))
+        return false;
+
+    if (isTeamMember(victim, attacker))
+        return true;
+
+    if (attacker.isEmpty() || !attacker.getClass().isActor())
+        return false;
+
+    int attackerActorId = attacker.getClass().getCreatureStats(attacker).getActorId();
+    MWWorld::Ptr summonOwner;
+
+    MWWorld::Ptr localPlayer = MWMechanics::getPlayer();
+    if (!localPlayer.isEmpty())
+    {
+        const auto& summonedCreatures = localPlayer.getClass().getCreatureStats(localPlayer).getSummonedCreatureMap();
+        for (const auto& summon : summonedCreatures)
+        {
+            if (summon.second == attackerActorId)
+            {
+                summonOwner = localPlayer;
+                break;
+            }
+        }
+    }
+
+    if (summonOwner.isEmpty())
+        summonOwner = PlayerList::getSummonOwner(attackerActorId);
+
+    return !summonOwner.isEmpty() && isTeamMember(victim, summonOwner);
 }
 
 void MechanicsHelper::processAttack(Attack attack, const MWWorld::Ptr& attacker)
