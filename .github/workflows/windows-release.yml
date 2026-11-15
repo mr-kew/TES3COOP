@@ -257,8 +257,9 @@ jobs:
           $configFile = Join-Path $serverDir 'scripts\config.lua'
           if (-not (Test-Path $configFile)) { throw 'CoreScripts config.lua was not found.' }
           $dispositionSetting = 'config.persistNpcDispositions = true'
-          if (-not (Select-String -Path $configFile -SimpleMatch $dispositionSetting -Quiet)) {
-            $configLines = [System.Collections.Generic.List[string]]::new((Get-Content -Path $configFile))
+          $friendlyFireSetting = 'config.friendlyFire = true'
+          $configLines = [System.Collections.Generic.List[string]]::new((Get-Content -Path $configFile))
+          if (-not ($configLines -contains $dispositionSetting)) {
             $shareKillsIndex = -1
             for ($i = 0; $i -lt $configLines.Count; $i++) {
               if ($configLines[$i] -match '^\s*config\.shareKills\s*=') {
@@ -272,6 +273,18 @@ jobs:
               '-- Whether NPC dispositions should persist independently for each player',
               $dispositionSetting
             ))
+          }
+          if (-not ($configLines -contains $friendlyFireSetting)) {
+            $dispositionIndex = $configLines.IndexOf($dispositionSetting)
+            if ($dispositionIndex -lt 0) { throw 'Could not find the NPC disposition setting in config.lua.' }
+            $configLines.InsertRange($dispositionIndex + 1, [string[]]@(
+              '',
+              '-- Whether players can damage allied/friendly players',
+              $friendlyFireSetting
+            ))
+          }
+          if (-not (Select-String -Path $configFile -SimpleMatch $dispositionSetting -Quiet) -or
+              -not (Select-String -Path $configFile -SimpleMatch $friendlyFireSetting -Quiet)) {
             Set-Content -Path $configFile -Value $configLines -Encoding utf8
           }
 
