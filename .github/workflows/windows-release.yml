@@ -139,13 +139,31 @@ jobs:
           set(LUA_LIBRARIES "$luaLibraryCmake")
           "@ | Set-Content -Path (Join-Path $moduleDir 'FindLua51.cmake') -Encoding utf8NoBOM
 
+          # CMake's WINDOWS_EXPORT_ALL_SYMBOLS does not reliably export the Lua
+          # entry point from this MODULE target. Give the linker an explicit export.
+          @"
+          LIBRARY cjson
+          EXPORTS
+              luaopen_cjson
+          "@ | Set-Content -Path (Join-Path 'deps\Lua-CJSON' 'cjson.def') -Encoding ascii
+          Add-Content -Path 'deps\Lua-CJSON\CMakeLists.txt' -Value 'target_sources(cjson PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/cjson.def")'
+
           cmake -S deps/Lua-CJSON -B deps/Lua-CJSON/build -A x64 -T v142 `
             "-DCMAKE_MODULE_PATH=$moduleDirCmake" `
             -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON
           if ($LASTEXITCODE -ne 0) { throw 'Lua CJSON configuration failed.' }
           cmake --build deps/Lua-CJSON/build --config Release --parallel 2
           if ($LASTEXITCODE -ne 0) { throw 'Lua CJSON build failed.' }
-          if (-not (Test-Path 'deps\Lua-CJSON\build\Release\cjson.dll')) { throw 'Lua CJSON build did not produce cjson.dll.' }
+          $cjsonDll = 'deps\Lua-CJSON\build\Release\cjson.dll'
+          if (-not (Test-Path $cjsonDll)) { throw 'Lua CJSON build did not produce cjson.dll.' }
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $installPath = & $vswhere -latest -products '*' -property installationPath
+          $dumpbin = Get-ChildItem (Join-Path $installPath 'VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe') | Select-Object -First 1
+          if (-not $dumpbin) { throw 'dumpbin.exe was not found to verify the CJSON module export.' }
+          $exports = & $dumpbin.FullName /nologo /exports $cjsonDll 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0 -or $exports -notmatch 'luaopen_cjson') {
+            throw 'Lua CJSON DLL does not export luaopen_cjson.'
+          }
 
       - name: Build Lua io2 module
         shell: pwsh
