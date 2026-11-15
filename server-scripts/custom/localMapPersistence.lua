@@ -20,7 +20,13 @@ local function fogFileKey(playerName, cellDescription)
     return string.format("%08x%08x", first, second)
 end
 
-local function texturePath(pid, cellDescription, textureIndex, version)
+local function texturePath(pid, cellDescription, textureIndex)
+    local playerName = tes3mp.GetName(pid)
+    local key = fogFileKey(playerName, cellDescription)
+    return config.dataPath .. "/map/local_" .. key .. "_" .. textureIndex .. ".png"
+end
+
+local function legacyTexturePath(pid, cellDescription, textureIndex, version)
     local playerName = tes3mp.GetName(pid)
     local key = fogFileKey(playerName, cellDescription)
     return config.dataPath .. "/map/local_" .. key .. "_" .. version .. "_" .. textureIndex .. ".png"
@@ -48,7 +54,10 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
             saved.northMarkerAngle, saved.minX, saved.minY, saved.maxX, saved.maxY)
 
         for index, texture in ipairs(saved.textures or {}) do
-            local path = texturePath(pid, cellDescription, index - 1, saved.version or 1)
+            local path = texturePath(pid, cellDescription, index - 1)
+            if not tes3mp.DoesFilePathExist(path) and saved.version ~= nil then
+                path = legacyTexturePath(pid, cellDescription, index - 1, saved.version)
+            end
             if not tes3mp.DoesFilePathExist(path) or
                 not tes3mp.LoadPlayerLocalMapFogTextureFile(pid, texture.x, texture.y, path) then
                 return eventStatus
@@ -63,10 +72,7 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
         end
 
         player.data = player.data or {}
-        local previous = player.data.localMapFog and player.data.localMapFog[cellDescription]
-        local version = previous and ((previous.version or 1) + 1) or 1
         local saved = {
-            version = version,
             isInterior = tes3mp.GetPlayerLocalMapFogIsInterior(),
             northMarkerAngle = tes3mp.GetPlayerLocalMapFogNorthAngle(),
             minX = tes3mp.GetPlayerLocalMapFogMinX(),
@@ -79,7 +85,7 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
         for index = 0, textureCount - 1 do
             local x = tes3mp.GetPlayerLocalMapFogTextureX(index)
             local y = tes3mp.GetPlayerLocalMapFogTextureY(index)
-            local path = texturePath(pid, cellDescription, index, version)
+            local path = texturePath(pid, cellDescription, index)
             if not tes3mp.SavePlayerLocalMapFogTextureFile(index, path) or
                 not tes3mp.DoesFilePathExist(path) then
                 return eventStatus
@@ -93,12 +99,6 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
         player.data.localMapFog[cellDescription] = saved
         player:QuicksaveToDrive()
 
-        if previous ~= nil then
-            local previousVersion = previous.version or 1
-            for index = 0, #(previous.textures or {}) - 1 do
-                os.remove(texturePath(pid, cellDescription, index, previousVersion))
-            end
-        end
         tes3mp.AcknowledgePlayerLocalMapFog(pid)
     end
 
