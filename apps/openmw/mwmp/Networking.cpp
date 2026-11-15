@@ -210,6 +210,7 @@ Networking::Networking(): peer(RakNet::RakPeerInterface::GetInstance()), systemP
     worldstatePacketController.SetStream(0, &bsOut);
 
     connected = 0;
+    handshakeComplete = false;
     ProcessorInitializer();
 }
 
@@ -508,4 +509,14 @@ Worldstate *Networking::getWorldstate()
 bool Networking::isConnected()
 {
     return connected;
+}
+
+bool Networking::isHandshakeComplete() const
+{
+    return handshakeComplete;
+}
+
+void Networking::setHandshakeComplete()
+{
+    handshakeComplete = true;
 }

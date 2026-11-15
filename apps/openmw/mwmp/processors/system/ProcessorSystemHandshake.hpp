@@ -20,7 +20,8 @@ namespace mwmp
         virtual void Do(SystemPacket &packet, BaseSystem *system)
         {
             packet.setSystem(Main::get().getLocalSystem());
-            packet.Send(serverAddr);
+            if (isRequest() && packet.Send(serverAddr) != 0)
+                Main::get().getNetworking()->setHandshakeComplete();
         }
     };
 }

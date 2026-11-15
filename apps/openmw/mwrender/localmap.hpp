@@ -162,6 +162,7 @@ namespace MWRender
         void requestInteriorMap(const MWWorld::CellStore* cell);
         bool sendFogOfWar(const MWWorld::CellStore* cell, const ESM::FogState& fog);
         bool sendPendingFog(const std::string& cellDescription);
+        bool sendFogRequest(const std::string& cellDescription, bool isInterior);
         void requestFogOfWar(const MWWorld::CellStore* cell);
         void syncDirtyFog();
 
@@ -172,6 +173,7 @@ namespace MWRender
         osg::BoundingBox mBounds;
         std::chrono::steady_clock::time_point mLastFogSync;
         std::map<std::string, mwmp::LocalMapFogCell> mPendingFog;
+        std::map<std::string, bool> mPendingFogRequests;
         uint32_t mNextFogUpdateId = 1;
     };
 

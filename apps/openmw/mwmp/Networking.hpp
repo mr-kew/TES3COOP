@@ -44,6 +44,8 @@ namespace mwmp
         }
 
         bool isConnected();
+        bool isHandshakeComplete() const;
+        void setHandshakeComplete();
 
         LocalSystem *getLocalSystem();
         LocalPlayer *getLocalPlayer();
@@ -53,6 +55,7 @@ namespace mwmp
 
     private:
         bool connected;
+        bool handshakeComplete;
         RakNet::RakPeerInterface *peer;
         RakNet::SystemAddress serverAddr;
         RakNet::BitStream bsOut;

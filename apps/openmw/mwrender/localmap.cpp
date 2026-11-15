@@ -275,7 +275,7 @@ bool LocalMap::sendPendingFog(const std::string& cellDescription)
     if (pending == mPendingFog.end())
         return false;
     mwmp::Networking* networking = mwmp::Main::get().getNetworking();
-    if (!networking || !networking->isConnected())
+    if (!networking || !networking->isConnected() || !networking->isHandshakeComplete())
         return false;
     mwmp::LocalPlayer* player = networking->getLocalPlayer();
     if (!player)
@@ -310,17 +310,50 @@ void LocalMap::requestFogOfWar(const MWWorld::CellStore* cell)
         sendPendingFog(cellDescription);
         return;
     }
+    if (!networking->isHandshakeComplete())
+    {
+        mPendingFogRequests[cellDescription] = !cell->isExterior();
+        return;
+    }
+    const bool isInterior = !cell->isExterior();
+    if (!sendFogRequest(cellDescription, isInterior))
+        mPendingFogRequests[cellDescription] = isInterior;
+}
+
+bool LocalMap::sendFogRequest(const std::string& cellDescription, bool isInterior)
+{
+    mwmp::Networking* networking = mwmp::Main::get().getNetworking();
+    if (!networking || !networking->isConnected() || !networking->isHandshakeComplete())
+        return false;
+    mwmp::LocalPlayer* player = networking->getLocalPlayer();
+    if (!player)
+        return false;
+
+    player->localMapFog.updateId = 0;
     player->localMapFog.cellDescription = cellDescription;
-    player->localMapFog.isInterior = !cell->isExterior();
+    player->localMapFog.isInterior = isInterior;
     player->localMapFog.textures.clear();
     player->localMapFogAction = mwmp::LOCAL_MAP_FOG_REQUEST;
     mwmp::PlayerPacket* packet = networking->getPlayerPacket(ID_PLAYER_LOCAL_MAP);
     packet->setPlayer(player);
-    packet->Send();
+    return packet->Send() != 0;
 }
 
 void LocalMap::syncDirtyFog()
 {
+    for (auto request = mPendingFogRequests.begin(); request != mPendingFogRequests.end(); )
+    {
+        if (mPendingFog.find(request->first) != mPendingFog.end())
+        {
+            request = mPendingFogRequests.erase(request);
+            continue;
+        }
+        if (sendFogRequest(request->first, request->second))
+            request = mPendingFogRequests.erase(request);
+        else
+            ++request;
+    }
+
     const auto now = std::chrono::steady_clock::now();
     if (now - mLastFogSync < std::chrono::seconds(10))
         return;
@@ -483,6 +516,7 @@ void LocalMap::addCell(MWWorld::CellStore *cell)
 void LocalMap::removeCell(MWWorld::CellStore *cell)
 {
     saveFogOfWar(cell);
+    mPendingFogRequests.erase(cell->getCell()->getShortDescription());
 
     if (cell->isExterior())
     {
