@@ -156,7 +156,7 @@ jobs:
       - name: Build launcher, wizard, and server browser
         shell: pwsh
         run: |
-          cmake --build MSVC2022_64 --config Release --target openmw-launcher openmw-wizard tes3mp-browser --parallel 3
+          cmake --build MSVC2022_64 --config Release --target openmw-launcher openmw-wizard openmw-iniimporter tes3mp-browser --parallel 3
           if ($LASTEXITCODE -ne 0) { throw 'TES3MP support applications build failed.' }
 
       - name: Install TES3MP
