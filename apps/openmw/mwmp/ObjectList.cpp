@@ -25,6 +25,7 @@
 
 #include "../mwmechanics/aifollow.hpp"
 #include "../mwmechanics/creaturestats.hpp"
+#include "../mwmechanics/npcstats.hpp"
 #include "../mwmechanics/spellcasting.hpp"
 #include "../mwmechanics/summoning.hpp"
 
@@ -1016,13 +1017,13 @@ void ObjectList::makeDialogueChoices(MWWorld::CellStore* cellStore)
         if (baseObject.dialogueChoiceType == DialogueChoiceType::NPC_DISPOSITION)
         {
             const auto key = std::make_tuple(baseObject.refId, baseObject.refNum, baseObject.mpNum);
-            if (ptrFound)
+            if (!ptrFound.isEmpty())
             {
                 mPendingNpcDispositions.erase(key);
                 if (ptrFound.getClass().isNpc())
                     ptrFound.getClass().getNpcStats(ptrFound).setBaseDisposition(baseObject.npcDisposition);
             }
-            else if (!ptrFound)
+            else
             {
                 mPendingNpcDispositions[key] = baseObject;
             }
@@ -1104,7 +1105,7 @@ void ObjectList::applyPendingNpcDispositions(MWWorld::CellStore* cellStore)
     {
         const BaseObject& baseObject = iter->second;
         MWWorld::Ptr ptrFound = cellStore->searchExact(baseObject.refNum, baseObject.mpNum, baseObject.refId);
-        if (!ptrFound)
+        if (ptrFound.isEmpty())
         {
             ++iter;
             continue;
@@ -1419,7 +1420,7 @@ void ObjectList::addObjectDialogueChoice(const MWWorld::Ptr& ptr, std::string di
 
 void ObjectList::addNpcDisposition(const MWWorld::Ptr& ptr, int disposition)
 {
-    if (!ptr || !ptr.getClass().isNpc())
+    if (ptr.isEmpty() || !ptr.getClass().isNpc())
         return;
 
     cell = *ptr.getCell()->getCell();
@@ -1431,7 +1432,7 @@ void ObjectList::addNpcDisposition(const MWWorld::Ptr& ptr, int disposition)
 
 void mwmp::sendNpcDisposition(const MWWorld::Ptr& ptr)
 {
-    if (!mwmp::Main::isInitialized() || !ptr || !ptr.getClass().isNpc())
+    if (!mwmp::Main::isInitialized() || ptr.isEmpty() || !ptr.getClass().isNpc())
         return;
 
     ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
