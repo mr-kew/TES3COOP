@@ -4,6 +4,7 @@
 #include <components/openmw-mp/Base/BaseSystem.hpp>
 
 #include "apps/openmw/mwmp/Main.hpp"
+#include "apps/openmw/mwmp/Networking.hpp"
 
 #include "../SystemProcessor.hpp"
 
