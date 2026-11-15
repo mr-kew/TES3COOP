@@ -119,9 +119,21 @@ jobs:
         shell: pwsh
         run: |
           $luaPrefix = Join-Path $env:GITHUB_WORKSPACE 'deps\LuaJIT-install'
+          $io2SourcePath = 'deps\Lua-io2\library.cpp'
+          $io2Source = Get-Content $io2SourcePath -Raw
+          # The pinned Lua-io2 revision predates std::filesystem and otherwise falls back to Boost.
+          if (-not $io2Source.Contains('#include <experimental/filesystem>') -or
+              -not $io2Source.Contains('std::experimental::filesystem')) {
+            throw 'The pinned Lua io2 filesystem implementation changed unexpectedly.'
+          }
+          $io2Source = $io2Source.Replace('#include <experimental/filesystem>', '#include <filesystem>')
+          $io2Source = $io2Source.Replace('std::experimental::filesystem', 'std::filesystem')
+          Set-Content -Path $io2SourcePath -Value $io2Source -Encoding utf8NoBOM -NoNewline
+
           cmake -S deps/Lua-io2 -B deps/Lua-io2/build -A x64 -T v142 `
             "-DLuaJit_INCLUDE_DIR=$luaPrefix/include" `
-            "-DLuaJit_LIBRARY=$luaPrefix/lib/lua51.lib"
+            "-DLuaJit_LIBRARY=$luaPrefix/lib/lua51.lib" `
+            -DHAVE_FILESYSTEM_H=TRUE
           if ($LASTEXITCODE -ne 0) { throw 'Lua io2 configuration failed.' }
           cmake --build deps/Lua-io2/build --config Release --parallel 2
           if ($LASTEXITCODE -ne 0) { throw 'Lua io2 build failed.' }
