@@ -43,6 +43,14 @@ jobs:
           ref: v2.1
           path: deps/LuaJIT
 
+      - name: Check out Lua io2
+        uses: actions/checkout@v7
+        with:
+          repository: TES3MP/Lua-io2
+          ref: 4f132ff9d0208267b37936dd17253bb540970489
+          path: deps/Lua-io2
+          submodules: recursive
+
       - name: Set up compatible CMake
         uses: actions/setup-python@v6
         with:
@@ -107,6 +115,18 @@ jobs:
           Copy-Item 'deps\LuaJIT\src\lua51.dll' "$prefix\bin"
           "LUAJIT_HOME=$prefix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
+      - name: Build Lua io2 module
+        shell: pwsh
+        run: |
+          $luaPrefix = Join-Path $env:GITHUB_WORKSPACE 'deps\LuaJIT-install'
+          cmake -S deps/Lua-io2 -B deps/Lua-io2/build -A x64 -T v142 `
+            "-DLuaJit_INCLUDE_DIR=$luaPrefix/include" `
+            "-DLuaJit_LIBRARY=$luaPrefix/lib/lua51.lib"
+          if ($LASTEXITCODE -ne 0) { throw 'Lua io2 configuration failed.' }
+          cmake --build deps/Lua-io2/build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'Lua io2 build failed.' }
+          if (-not (Test-Path 'deps\Lua-io2\build\Release\io2.dll')) { throw 'Lua io2 build did not produce io2.dll.' }
+
       - name: Configure TES3MP
         shell: bash
         run: |
@@ -143,6 +163,10 @@ jobs:
           foreach ($folder in @('data', 'lib', 'scripts')) {
             Copy-Item "deps\CoreScripts\$folder" $serverDir -Recurse
           }
+
+          $serverLibDir = Join-Path $serverDir 'lib'
+          New-Item -ItemType Directory -Force -Path $serverLibDir | Out-Null
+          Copy-Item 'deps\Lua-io2\build\Release\io2.dll' $serverLibDir
 
           $customDir = Join-Path $serverDir 'scripts\custom'
           New-Item -ItemType Directory -Force -Path $customDir | Out-Null
