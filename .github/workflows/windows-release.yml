@@ -258,7 +258,8 @@ jobs:
           if (-not (Test-Path $configFile)) { throw 'CoreScripts config.lua was not found.' }
           $dispositionSetting = 'config.persistNpcDispositions = true'
           $friendlyFireSetting = 'config.friendlyFire = true'
-          $configLines = [System.Collections.Generic.List[string]]::new((Get-Content -Path $configFile))
+          $configLines = [System.Collections.Generic.List[string]]::new()
+          $configLines.AddRange([string[]](Get-Content -Path $configFile))
           if (-not ($configLines -contains $dispositionSetting)) {
             $shareKillsIndex = -1
             for ($i = 0; $i -lt $configLines.Count; $i++) {
