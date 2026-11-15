@@ -136,6 +136,7 @@ jobs:
           set(LUA51_FOUND TRUE)
           set(LUA_INCLUDE_DIR "$luaIncludeCmake")
           set(LUA_LIBRARY "$luaLibraryCmake")
+          set(LUA_LIBRARIES "$luaLibraryCmake")
           "@ | Set-Content -Path (Join-Path $moduleDir 'FindLua51.cmake') -Encoding utf8NoBOM
 
           cmake -S deps/Lua-CJSON -B deps/Lua-CJSON/build -A x64 -T v142 `
