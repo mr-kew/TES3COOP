@@ -431,6 +431,8 @@ namespace MWBase
             virtual void addCell(MWWorld::CellStore* cell) = 0;
             virtual void removeCell(MWWorld::CellStore* cell) = 0;
             virtual void writeFog(MWWorld::CellStore* cell) = 0;
+            virtual void refreshLocalMapFog(MWWorld::CellStore* cell) = 0;
+            virtual void acknowledgeLocalMapFog(const std::string& cellDescription, uint32_t updateId) = 0;
 
             virtual const MWGui::TextColours& getTextColours() = 0;
 

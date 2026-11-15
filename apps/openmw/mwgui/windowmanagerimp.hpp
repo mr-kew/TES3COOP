@@ -472,6 +472,8 @@ namespace MWGui
     void addCell(MWWorld::CellStore* cell) override;
     void removeCell(MWWorld::CellStore* cell) override;
     void writeFog(MWWorld::CellStore* cell) override;
+    void refreshLocalMapFog(MWWorld::CellStore* cell) override;
+    void acknowledgeLocalMapFog(const std::string& cellDescription, uint32_t updateId) override;
 
     const MWGui::TextColours& getTextColours() override;
 

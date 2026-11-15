@@ -207,6 +207,7 @@ jobs:
           foreach ($folder in @('data', 'lib', 'scripts')) {
             Copy-Item "deps\CoreScripts\$folder" $serverDir -Recurse
           }
+          New-Item -ItemType Directory -Force -Path (Join-Path $serverDir 'data\map') | Out-Null
 
           $serverLibDir = Join-Path $serverDir 'lib'
           New-Item -ItemType Directory -Force -Path $serverLibDir | Out-Null
@@ -217,6 +218,7 @@ jobs:
 
           $customDir = Join-Path $serverDir 'scripts\custom'
           New-Item -ItemType Directory -Force -Path $customDir | Out-Null
+          Copy-Item server-scripts/custom/localMapPersistence.lua $customDir
           Copy-Item server-scripts/custom/friendlyFire.lua $customDir
           Copy-Item server-scripts/custom/topicJournalPersistence.lua $customDir
           Copy-Item server-scripts/custom/npcDispositionPersistence.lua $customDir
@@ -224,6 +226,7 @@ jobs:
           $customScripts = Join-Path $serverDir 'scripts\customScripts.lua'
           if (-not (Test-Path $customScripts)) { throw 'CoreScripts customScripts.lua was not found.' }
           foreach ($requireLine in @(
+            'require("custom/localMapPersistence")',
             'require("custom/friendlyFire")',
             'require("custom/topicJournalPersistence")',
             'require("custom/npcDispositionPersistence")'

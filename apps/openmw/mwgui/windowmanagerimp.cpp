@@ -2329,6 +2329,16 @@ namespace MWGui
         mLocalMapRender->saveFogOfWar(cell);
     }
 
+    void WindowManager::refreshLocalMapFog(MWWorld::CellStore *cell)
+    {
+        mLocalMapRender->refreshFogOfWar(cell);
+    }
+
+    void WindowManager::acknowledgeLocalMapFog(const std::string& cellDescription, uint32_t updateId)
+    {
+        mLocalMapRender->acknowledgeFog(cellDescription, updateId);
+    }
+
     const MWGui::TextColours& WindowManager::getTextColours()
     {
         return mTextColours;

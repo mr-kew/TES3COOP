@@ -216,6 +216,7 @@ public:
             {"OnGUIAction",              Callback<unsigned short, int, const char*>()},
             {"OnWorldKillCount",         Callback<unsigned short>()},
             {"OnWorldMap",               Callback<unsigned short>()},
+            {"OnPlayerLocalMap",          Callback<unsigned short>()},
             {"OnWorldWeather",           Callback<unsigned short>()},
             {"OnClientScriptLocal",      Callback<unsigned short, const char*>()},
             {"OnClientScriptGlobal",     Callback<unsigned short>()},

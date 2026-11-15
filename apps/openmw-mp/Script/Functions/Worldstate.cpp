@@ -5,8 +5,10 @@
 #include <apps/openmw-mp/Script/ScriptFunctions.hpp>
 #include <apps/openmw-mp/CellController.hpp>
 #include <fstream>
+#include <utility>
 
 #include <apps/openmw-mp/Utils.hpp>
+#include <cstring>
 
 #include "Worldstate.hpp"
 
@@ -14,6 +16,159 @@ using namespace mwmp;
 
 BaseWorldstate *WorldstateFunctions::readWorldstate;
 BaseWorldstate WorldstateFunctions::writeWorldstate;
+BasePlayer *WorldstateFunctions::readLocalMapFogPlayer;
+
+void WorldstateFunctions::ReadPlayerLocalMapFog(unsigned short pid) noexcept
+{
+    readLocalMapFogPlayer = Players::getPlayer(pid);
+}
+
+int WorldstateFunctions::GetPlayerLocalMapFogAction() noexcept
+{
+    return readLocalMapFogPlayer ? readLocalMapFogPlayer->localMapFogAction : LOCAL_MAP_FOG_REQUEST;
+}
+
+const char* WorldstateFunctions::GetPlayerLocalMapFogCellDescription() noexcept
+{
+    return readLocalMapFogPlayer ? readLocalMapFogPlayer->localMapFog.cellDescription.c_str() : "";
+}
+
+bool WorldstateFunctions::GetPlayerLocalMapFogIsInterior() noexcept
+{
+    return readLocalMapFogPlayer && readLocalMapFogPlayer->localMapFog.isInterior;
+}
+
+double WorldstateFunctions::GetPlayerLocalMapFogNorthAngle() noexcept
+{
+    return readLocalMapFogPlayer ? readLocalMapFogPlayer->localMapFog.northMarkerAngle : 0.0;
+}
+
+double WorldstateFunctions::GetPlayerLocalMapFogMinX() noexcept
+{
+    return readLocalMapFogPlayer ? readLocalMapFogPlayer->localMapFog.minX : 0.0;
+}
+
+double WorldstateFunctions::GetPlayerLocalMapFogMinY() noexcept
+{
+    return readLocalMapFogPlayer ? readLocalMapFogPlayer->localMapFog.minY : 0.0;
+}
+
+double WorldstateFunctions::GetPlayerLocalMapFogMaxX() noexcept
+{
+    return readLocalMapFogPlayer ? readLocalMapFogPlayer->localMapFog.maxX : 0.0;
+}
+
+double WorldstateFunctions::GetPlayerLocalMapFogMaxY() noexcept
+{
+    return readLocalMapFogPlayer ? readLocalMapFogPlayer->localMapFog.maxY : 0.0;
+}
+
+unsigned int WorldstateFunctions::GetPlayerLocalMapFogTextureCount() noexcept
+{
+    return readLocalMapFogPlayer ? static_cast<unsigned int>(readLocalMapFogPlayer->localMapFog.textures.size()) : 0;
+}
+
+int WorldstateFunctions::GetPlayerLocalMapFogTextureX(unsigned int index) noexcept
+{
+    if (!readLocalMapFogPlayer || index >= readLocalMapFogPlayer->localMapFog.textures.size())
+        return 0;
+    return readLocalMapFogPlayer->localMapFog.textures[index].x;
+}
+
+int WorldstateFunctions::GetPlayerLocalMapFogTextureY(unsigned int index) noexcept
+{
+    if (!readLocalMapFogPlayer || index >= readLocalMapFogPlayer->localMapFog.textures.size())
+        return 0;
+    return readLocalMapFogPlayer->localMapFog.textures[index].y;
+}
+
+bool WorldstateFunctions::SavePlayerLocalMapFogTextureFile(unsigned int index, const char* filePath) noexcept
+{
+    if (!readLocalMapFogPlayer || index >= readLocalMapFogPlayer->localMapFog.textures.size() || !filePath)
+        return false;
+    const std::vector<char>& image = readLocalMapFogPlayer->localMapFog.textures[index].imageData;
+    if (image.empty() || image.size() > 8192)
+        return false;
+    std::ofstream output(filePath, std::ios::binary);
+    if (!output)
+        return false;
+    output.write(image.data(), static_cast<std::streamsize>(image.size()));
+    return output.good();
+}
+
+void WorldstateFunctions::ClearPlayerLocalMapFog(unsigned short pid) noexcept
+{
+    Player* player = Players::getPlayer(pid);
+    if (!player)
+        return;
+    player->localMapFog.textures.clear();
+    player->localMapFogAction = LOCAL_MAP_FOG_RESPONSE;
+}
+
+void WorldstateFunctions::SetPlayerLocalMapFogCell(unsigned short pid, const char* cellDescription, bool isInterior,
+    double northMarkerAngle, double minX, double minY, double maxX, double maxY) noexcept
+{
+    Player* player = Players::getPlayer(pid);
+    if (!player || !cellDescription || std::strlen(cellDescription) > 1024)
+        return;
+    auto& fog = player->localMapFog;
+    fog.cellDescription = cellDescription;
+    fog.isInterior = isInterior;
+    fog.northMarkerAngle = static_cast<float>(northMarkerAngle);
+    fog.minX = static_cast<float>(minX);
+    fog.minY = static_cast<float>(minY);
+    fog.maxX = static_cast<float>(maxX);
+    fog.maxY = static_cast<float>(maxY);
+    fog.textures.clear();
+    player->localMapFogAction = LOCAL_MAP_FOG_RESPONSE;
+}
+
+bool WorldstateFunctions::LoadPlayerLocalMapFogTextureFile(unsigned short pid, int x, int y, const char* filePath) noexcept
+{
+    Player* player = Players::getPlayer(pid);
+    if (!player || !filePath || player->localMapFog.textures.size() >= 128)
+        return false;
+    std::ifstream input(filePath, std::ios::binary);
+    if (!input)
+        return false;
+    std::vector<char> image((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    if (image.empty() || image.size() > 8192)
+        return false;
+    size_t total = image.size();
+    for (const auto& texture : player->localMapFog.textures)
+        total += texture.imageData.size();
+    if (total > 128 * 1024)
+        return false;
+    LocalMapFogTexture texture;
+    texture.x = x;
+    texture.y = y;
+    texture.imageData = std::move(image);
+    player->localMapFog.textures.push_back(std::move(texture));
+    return true;
+}
+
+void WorldstateFunctions::SendPlayerLocalMapFog(unsigned short pid) noexcept
+{
+    Player* player = Players::getPlayer(pid);
+    if (!player)
+        return;
+    PlayerPacket* packet = Networking::get().getPlayerPacketController()->GetPacket(ID_PLAYER_LOCAL_MAP);
+    packet->setPlayer(player);
+    packet->Send(false);
+}
+
+void WorldstateFunctions::AcknowledgePlayerLocalMapFog(unsigned short pid) noexcept
+{
+    Player* player = Players::getPlayer(pid);
+    if (!player)
+        return;
+    player->localMapFog.textures.clear();
+    player->localMapFogAction = LOCAL_MAP_FOG_ACK;
+    PlayerPacket* packet = Networking::get().getPlayerPacketController()->GetPacket(ID_PLAYER_LOCAL_MAP);
+    packet->setPlayer(player);
+    packet->Send(false);
+}
+
 
 void WorldstateFunctions::ReadReceivedWorldstate() noexcept
 {

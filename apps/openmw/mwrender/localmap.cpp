@@ -1,6 +1,8 @@
 #include "localmap.hpp"
 
+#include <algorithm>
 #include <stdint.h>
+#include <utility>
 
 #include <osg/Fog>
 #include <osg/LightModel>
@@ -30,6 +32,10 @@
 #include "../mwworld/cellstore.hpp"
 
 #include "vismask.hpp"
+
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
 
 namespace
 {
@@ -90,6 +96,7 @@ LocalMap::LocalMap(osg::Group* root)
     , mCellDistance(Constants::CellGridRadius)
     , mAngle(0.f)
     , mInterior(false)
+    , mLastFogSync(std::chrono::steady_clock::now())
 {
     // Increase map resolution, if use UI scaling
     float uiScale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
@@ -123,6 +130,7 @@ void LocalMap::clear()
 
 void LocalMap::saveFogOfWar(MWWorld::CellStore* cell)
 {
+    bool dirty = false;
     if (!mInterior)
     {
         const MapSegment& segment = mSegments[std::make_pair(cell->getCell()->getGridX(), cell->getCell()->getGridY())];
@@ -131,10 +139,13 @@ void LocalMap::saveFogOfWar(MWWorld::CellStore* cell)
         {
             std::unique_ptr<ESM::FogState> fog (new ESM::FogState());
             fog->mFogTextures.emplace_back();
+            fog->mFogTextures.back().mX = 0;
+            fog->mFogTextures.back().mY = 0;
 
             segment.saveFogOfWar(fog->mFogTextures.back());
 
             cell->setFog(fog.release());
+            dirty = segment.mFogDirty;
         }
     }
     else
@@ -162,6 +173,7 @@ void LocalMap::saveFogOfWar(MWWorld::CellStore* cell)
                 // saving even if !segment.mHasFogState so we don't mess up the segmenting
                 // plus, older openmw versions can't deal with empty images
                 segment.saveFogOfWar(fog->mFogTextures.back());
+                dirty = dirty || segment.mFogDirty;
 
                 fog->mFogTextures.back().mX = x;
                 fog->mFogTextures.back().mY = y;
@@ -169,6 +181,177 @@ void LocalMap::saveFogOfWar(MWWorld::CellStore* cell)
         }
 
         cell->setFog(fog.release());
+    }
+
+    if (dirty && cell->getFog())
+    {
+        if (sendFogOfWar(cell, *cell->getFog()))
+        {
+            if (cell->isExterior())
+            {
+                const auto coords = std::make_pair(cell->getCell()->getGridX(), cell->getCell()->getGridY());
+                auto found = mSegments.find(coords);
+                if (found != mSegments.end())
+                    found->second.mFogDirty = false;
+            }
+            else
+            {
+                for (const ESM::FogTexture& texture : cell->getFog()->mFogTextures)
+                {
+                    auto found = mSegments.find(std::make_pair(texture.mX, texture.mY));
+                    if (found != mSegments.end())
+                        found->second.mFogDirty = false;
+                }
+            }
+        }
+    }
+}
+
+void LocalMap::refreshFogOfWar(MWWorld::CellStore* cell)
+{
+    if (!cell->getFog())
+        return;
+
+    const ESM::FogState* fog = cell->getFog();
+    if (cell->isExterior())
+    {
+        const auto coords = std::make_pair(cell->getCell()->getGridX(), cell->getCell()->getGridY());
+        auto found = mSegments.find(coords);
+        if (found != mSegments.end() && !fog->mFogTextures.empty())
+            found->second.loadFogOfWar(fog->mFogTextures.back());
+    }
+    else
+    {
+        for (const ESM::FogTexture& texture : fog->mFogTextures)
+        {
+            auto found = mSegments.find(std::make_pair(texture.mX, texture.mY));
+            if (found != mSegments.end())
+                found->second.loadFogOfWar(texture);
+        }
+    }
+}
+
+bool LocalMap::sendFogOfWar(const MWWorld::CellStore* cell, const ESM::FogState& fog)
+{
+    size_t imageBytes = 0;
+    if (fog.mFogTextures.size() > 128)
+        return false;
+    for (const ESM::FogTexture& texture : fog.mFogTextures)
+    {
+        if (texture.mImageData.size() > 8192)
+            return false;
+        imageBytes += texture.mImageData.size();
+    }
+    if (imageBytes > 128 * 1024)
+        return false;
+
+    mwmp::LocalMapFogCell update;
+    update.updateId = mNextFogUpdateId++;
+    update.cellDescription = cell->getCell()->getShortDescription();
+    update.isInterior = cell->isInterior();
+    update.northMarkerAngle = cell->isInterior() ? fog.mNorthMarkerAngle : 0.f;
+    update.minX = cell->isInterior() ? fog.mBounds.mMinX : 0.f;
+    update.minY = cell->isInterior() ? fog.mBounds.mMinY : 0.f;
+    update.maxX = cell->isInterior() ? fog.mBounds.mMaxX : 0.f;
+    update.maxY = cell->isInterior() ? fog.mBounds.mMaxY : 0.f;
+    update.textures.clear();
+    update.textures.reserve(fog.mFogTextures.size());
+    for (const ESM::FogTexture& texture : fog.mFogTextures)
+    {
+        mwmp::LocalMapFogTexture image;
+        image.x = texture.mX;
+        image.y = texture.mY;
+        image.imageData = texture.mImageData;
+        update.textures.push_back(std::move(image));
+    }
+
+    mPendingFog[update.cellDescription] = update;
+    return sendPendingFog(update.cellDescription);
+}
+
+bool LocalMap::sendPendingFog(const std::string& cellDescription)
+{
+    auto pending = mPendingFog.find(cellDescription);
+    if (pending == mPendingFog.end())
+        return false;
+    mwmp::Networking* networking = mwmp::Main::get().getNetworking();
+    if (!networking || !networking->isConnected())
+        return false;
+    mwmp::LocalPlayer* player = networking->getLocalPlayer();
+    if (!player)
+        return false;
+    player->localMapFog = pending->second;
+    player->localMapFogAction = mwmp::LOCAL_MAP_FOG_UPDATE;
+    mwmp::PlayerPacket* packet = networking->getPlayerPacket(ID_PLAYER_LOCAL_MAP);
+    packet->setPlayer(player);
+    return packet->Send() != 0;
+}
+
+void LocalMap::acknowledgeFog(const std::string& cellDescription, uint32_t updateId)
+{
+    auto pending = mPendingFog.find(cellDescription);
+    if (pending != mPendingFog.end() && pending->second.updateId == updateId)
+        mPendingFog.erase(pending);
+}
+
+void LocalMap::requestFogOfWar(const MWWorld::CellStore* cell)
+{
+    mwmp::Networking* networking = mwmp::Main::get().getNetworking();
+    if (!networking || !networking->isConnected())
+        return;
+
+    mwmp::LocalPlayer* player = networking->getLocalPlayer();
+    if (!player)
+        return;
+
+    const std::string cellDescription = cell->getCell()->getShortDescription();
+    if (mPendingFog.find(cellDescription) != mPendingFog.end())
+    {
+        sendPendingFog(cellDescription);
+        return;
+    }
+    player->localMapFog.cellDescription = cellDescription;
+    player->localMapFog.isInterior = cell->isInterior();
+    player->localMapFog.textures.clear();
+    player->localMapFogAction = mwmp::LOCAL_MAP_FOG_REQUEST;
+    mwmp::PlayerPacket* packet = networking->getPlayerPacket(ID_PLAYER_LOCAL_MAP);
+    packet->setPlayer(player);
+    packet->Send();
+}
+
+void LocalMap::syncDirtyFog()
+{
+    const auto now = std::chrono::steady_clock::now();
+    if (now - mLastFogSync < std::chrono::seconds(10))
+        return;
+    mLastFogSync = now;
+
+    for (const auto& pending : mPendingFog)
+        sendPendingFog(pending.first);
+
+    MWBase::World* world = MWBase::Environment::get().getWorld();
+    if (mInterior)
+    {
+        MWWorld::CellStore* cell = world->getPlayerPtr().getCell();
+        if (!cell)
+            return;
+        const bool dirty = std::any_of(mSegments.begin(), mSegments.end(), [](const auto& entry)
+        {
+            return entry.second.mFogDirty;
+        });
+        if (dirty)
+            saveFogOfWar(cell);
+    }
+    else
+    {
+        for (const auto& entry : mSegments)
+        {
+            if (!entry.second.mFogDirty)
+                continue;
+            MWWorld::CellStore* cell = world->getExterior(entry.first.first, entry.first.second);
+            if (cell)
+                saveFogOfWar(cell);
+        }
     }
 }
 
@@ -293,6 +476,8 @@ void LocalMap::addCell(MWWorld::CellStore *cell)
 {
     if (cell->isExterior())
         mCurrentGrid.emplace(cell->getCell()->getGridX(), cell->getCell()->getGridY());
+
+    requestFogOfWar(cell);
 }
 
 void LocalMap::removeCell(MWWorld::CellStore *cell)
@@ -662,14 +847,18 @@ void LocalMap::updatePlayer (const osg::Vec3f& position, const osg::Quat& orient
             if (changed)
             {
                 segment.mHasFogState = true;
+                segment.mFogDirty = true;
                 segment.mFogOfWarImage->dirty();
             }
         }
     }
+
+    syncDirtyFog();
 }
 
 LocalMap::MapSegment::MapSegment()
     : mHasFogState(false)
+    , mFogDirty(false)
 {
 }
 
@@ -740,6 +929,7 @@ void LocalMap::MapSegment::loadFogOfWar(const ESM::FogTexture &esm)
     createFogOfWarTexture();
     mFogOfWarTexture->setImage(mFogOfWarImage);
     mHasFogState = true;
+    mFogDirty = false;
 }
 
 void LocalMap::MapSegment::saveFogOfWar(ESM::FogTexture &fog) const

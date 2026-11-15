@@ -51,6 +51,29 @@ To install it on a server using the matching custom build:
 The separate `shareTopics` setting continues to control synchronization of learned
 dialogue topic IDs. It does not control the response history shown in the journal.
 
+## Per-player local-map persistence
+
+Explored local-map fog is saved in each player's CoreScripts player data and its
+PNG images are stored separately under `data/map/`. Fog is always private to the
+player who explored it. This feature deliberately ignores `config.shareMapExploration`;
+it does not combine or share players' local-map fog.
+
+It requires matching TES3COOP client and server builds. To enable it on a
+CoreScripts 0.8.1 server:
+
+1. Copy `custom/localMapPersistence.lua` into `CoreScripts/scripts/custom/`.
+2. Add `require("custom/localMapPersistence")` to
+   `CoreScripts/scripts/customScripts.lua`.
+3. Ensure the server's `data/map/` directory exists and is writable.
+4. Restart the server.
+
+There is no configuration setting to enable or disable local-map persistence. The
+Windows release ZIP includes and loads the plugin automatically. Fog is requested
+as cells become active and uploaded when changed cells unload (with periodic
+syncs while exploring), so reconnecting does not download the player's entire
+explored map at once.
+Back up `data/map/` along with the normal player save data to preserve these maps.
+
 ## NPC disposition persistence
 
 Permanent NPC base disposition changes are synchronized back to the player who

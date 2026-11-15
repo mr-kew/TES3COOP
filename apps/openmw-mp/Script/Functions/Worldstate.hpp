@@ -2,6 +2,7 @@
 #define OPENMW_WORLDSTATEAPI_HPP
 
 #include <components/openmw-mp/Base/BaseWorldstate.hpp>
+#include <components/openmw-mp/Base/BasePlayer.hpp>
 #include "../Types.hpp"
 
 #define WORLDSTATEAPI \
@@ -72,6 +73,24 @@
     \
     {"SaveMapTileImageFile",              WorldstateFunctions::SaveMapTileImageFile},\
     {"LoadMapTileImageFile",              WorldstateFunctions::LoadMapTileImageFile},\
+    {"ReadPlayerLocalMapFog",              WorldstateFunctions::ReadPlayerLocalMapFog},\
+    {"GetPlayerLocalMapFogAction",          WorldstateFunctions::GetPlayerLocalMapFogAction},\
+    {"GetPlayerLocalMapFogCellDescription", WorldstateFunctions::GetPlayerLocalMapFogCellDescription},\
+    {"GetPlayerLocalMapFogIsInterior",      WorldstateFunctions::GetPlayerLocalMapFogIsInterior},\
+    {"GetPlayerLocalMapFogNorthAngle",       WorldstateFunctions::GetPlayerLocalMapFogNorthAngle},\
+    {"GetPlayerLocalMapFogMinX",             WorldstateFunctions::GetPlayerLocalMapFogMinX},\
+    {"GetPlayerLocalMapFogMinY",             WorldstateFunctions::GetPlayerLocalMapFogMinY},\
+    {"GetPlayerLocalMapFogMaxX",             WorldstateFunctions::GetPlayerLocalMapFogMaxX},\
+    {"GetPlayerLocalMapFogMaxY",             WorldstateFunctions::GetPlayerLocalMapFogMaxY},\
+    {"GetPlayerLocalMapFogTextureCount",     WorldstateFunctions::GetPlayerLocalMapFogTextureCount},\
+    {"GetPlayerLocalMapFogTextureX",         WorldstateFunctions::GetPlayerLocalMapFogTextureX},\
+    {"GetPlayerLocalMapFogTextureY",         WorldstateFunctions::GetPlayerLocalMapFogTextureY},\
+    {"SavePlayerLocalMapFogTextureFile",     WorldstateFunctions::SavePlayerLocalMapFogTextureFile},\
+    {"ClearPlayerLocalMapFog",               WorldstateFunctions::ClearPlayerLocalMapFog},\
+    {"SetPlayerLocalMapFogCell",             WorldstateFunctions::SetPlayerLocalMapFogCell},\
+    {"LoadPlayerLocalMapFogTextureFile",     WorldstateFunctions::LoadPlayerLocalMapFogTextureFile},\
+    {"SendPlayerLocalMapFog",                WorldstateFunctions::SendPlayerLocalMapFog},\
+    {"AcknowledgePlayerLocalMapFog",          WorldstateFunctions::AcknowledgePlayerLocalMapFog},\
     \
     {"SendClientScriptGlobal",            WorldstateFunctions::SendClientScriptGlobal},\
     {"SendClientScriptSettings",          WorldstateFunctions::SendClientScriptSettings},\
@@ -93,6 +112,7 @@ public:
 
     static mwmp::BaseWorldstate *readWorldstate;
     static mwmp::BaseWorldstate writeWorldstate;
+    static mwmp::BasePlayer *readLocalMapFogPlayer;
 
     /**
     * \brief Use the last worldstate received by the server as the one being read.
@@ -535,6 +555,26 @@ public:
     * \return void
     */
     static void LoadMapTileImageFile(int cellX, int cellY, const char* filePath) noexcept;
+
+    static void ReadPlayerLocalMapFog(unsigned short pid) noexcept;
+    static int GetPlayerLocalMapFogAction() noexcept;
+    static const char* GetPlayerLocalMapFogCellDescription() noexcept;
+    static bool GetPlayerLocalMapFogIsInterior() noexcept;
+    static double GetPlayerLocalMapFogNorthAngle() noexcept;
+    static double GetPlayerLocalMapFogMinX() noexcept;
+    static double GetPlayerLocalMapFogMinY() noexcept;
+    static double GetPlayerLocalMapFogMaxX() noexcept;
+    static double GetPlayerLocalMapFogMaxY() noexcept;
+    static unsigned int GetPlayerLocalMapFogTextureCount() noexcept;
+    static int GetPlayerLocalMapFogTextureX(unsigned int index) noexcept;
+    static int GetPlayerLocalMapFogTextureY(unsigned int index) noexcept;
+    static bool SavePlayerLocalMapFogTextureFile(unsigned int index, const char* filePath) noexcept;
+    static void ClearPlayerLocalMapFog(unsigned short pid) noexcept;
+    static void SetPlayerLocalMapFogCell(unsigned short pid, const char* cellDescription, bool isInterior,
+        double northMarkerAngle, double minX, double minY, double maxX, double maxY) noexcept;
+    static bool LoadPlayerLocalMapFogTextureFile(unsigned short pid, int x, int y, const char* filePath) noexcept;
+    static void SendPlayerLocalMapFog(unsigned short pid) noexcept;
+    static void AcknowledgePlayerLocalMapFog(unsigned short pid) noexcept;
 
     /**
     * \brief Send a ClientScriptGlobal packet with the current client script globals in

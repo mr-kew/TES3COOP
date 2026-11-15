@@ -4,6 +4,11 @@
 #include <set>
 #include <vector>
 #include <map>
+#include <chrono>
+#include <cstdint>
+#include <string>
+
+#include <components/openmw-mp/Base/BasePlayer.hpp>
 
 #include <osg/BoundingBox>
 #include <osg/Quat>
@@ -16,6 +21,7 @@ namespace MWWorld
 
 namespace ESM
 {
+    struct FogState;
     struct FogTexture;
 }
 
@@ -85,6 +91,8 @@ namespace MWRender
          */
         void saveFogOfWar(MWWorld::CellStore* cell);
 
+        void refreshFogOfWar(MWWorld::CellStore* cell);
+
         /**
          * Get the interior map texture index and normalized position on this texture, given a world position
          */
@@ -129,6 +137,7 @@ namespace MWRender
             Grid mGrid; // the grid that was active at the time of rendering this segment
 
             bool mHasFogState;
+            bool mFogDirty;
         };
 
         typedef std::map<std::pair<int, int>, MapSegment> SegmentMap;
@@ -149,12 +158,20 @@ namespace MWRender
 
         void requestExteriorMap(const MWWorld::CellStore* cell);
         void requestInteriorMap(const MWWorld::CellStore* cell);
+        bool sendFogOfWar(const MWWorld::CellStore* cell, const ESM::FogState& fog);
+        bool sendPendingFog(const std::string& cellDescription);
+        void acknowledgeFog(const std::string& cellDescription, uint32_t updateId);
+        void requestFogOfWar(const MWWorld::CellStore* cell);
+        void syncDirtyFog();
 
         osg::ref_ptr<osg::Camera> createOrthographicCamera(float left, float top, float width, float height, const osg::Vec3d& upVector, float zmin, float zmax);
         void setupRenderToTexture(osg::ref_ptr<osg::Camera> camera, int x, int y);
 
         bool mInterior;
         osg::BoundingBox mBounds;
+        std::chrono::steady_clock::time_point mLastFogSync;
+        std::map<std::string, mwmp::LocalMapFogCell> mPendingFog;
+        uint32_t mNextFogUpdateId = 1;
     };
 
 }

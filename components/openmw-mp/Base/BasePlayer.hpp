@@ -1,6 +1,8 @@
 #ifndef OPENMW_BASEPLAYER_HPP
 #define OPENMW_BASEPLAYER_HPP
 
+#include <cstdint>
+
 #include <components/esm/loadcell.hpp>
 #include <components/esm/loadcrea.hpp>
 #include <components/esm/loadnpc.hpp>
@@ -91,6 +93,34 @@ namespace mwmp
         };
 
         int type; // 0 - Cell load, 1 - Cell unload
+    };
+
+    struct LocalMapFogTexture
+    {
+        int x = 0;
+        int y = 0;
+        std::vector<char> imageData;
+    };
+
+    struct LocalMapFogCell
+    {
+        uint32_t updateId = 0;
+        std::string cellDescription;
+        bool isInterior = false;
+        float northMarkerAngle = 0.f;
+        float minX = 0.f;
+        float minY = 0.f;
+        float maxX = 0.f;
+        float maxY = 0.f;
+        std::vector<LocalMapFogTexture> textures;
+    };
+
+    enum LOCAL_MAP_FOG_ACTION
+    {
+        LOCAL_MAP_FOG_REQUEST = 0,
+        LOCAL_MAP_FOG_UPDATE = 1,
+        LOCAL_MAP_FOG_RESPONSE = 2,
+        LOCAL_MAP_FOG_ACK = 3
     };
 
     struct FactionChanges
@@ -221,6 +251,8 @@ namespace mwmp
         std::vector<Topic> topicChanges;
         std::vector<Book> bookChanges;
         std::vector<CellState> cellStateChanges;
+        LocalMapFogCell localMapFog;
+        int localMapFogAction = LOCAL_MAP_FOG_REQUEST;
 
         std::vector<RakNet::RakNetGUID> alliedPlayers;
         CurrentContainer currentContainer;
