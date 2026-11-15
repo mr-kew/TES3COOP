@@ -258,7 +258,21 @@ jobs:
           if (-not (Test-Path $configFile)) { throw 'CoreScripts config.lua was not found.' }
           $dispositionSetting = 'config.persistNpcDispositions = true'
           if (-not (Select-String -Path $configFile -SimpleMatch $dispositionSetting -Quiet)) {
-            Add-Content -Path $configFile -Value $dispositionSetting
+            $configLines = [System.Collections.Generic.List[string]]::new((Get-Content -Path $configFile))
+            $shareKillsIndex = -1
+            for ($i = 0; $i -lt $configLines.Count; $i++) {
+              if ($configLines[$i] -match '^\s*config\.shareKills\s*=') {
+                $shareKillsIndex = $i
+                break
+              }
+            }
+            if ($shareKillsIndex -lt 0) { throw 'CoreScripts config.lua does not contain config.shareKills.' }
+            $configLines.InsertRange($shareKillsIndex + 1, [string[]]@(
+              '',
+              '-- Whether NPC dispositions should persist independently for each player',
+              $dispositionSetting
+            ))
+            Set-Content -Path $configFile -Value $configLines -Encoding utf8
           }
 
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "manual-$($env:GITHUB_SHA.Substring(0, 7))" }
