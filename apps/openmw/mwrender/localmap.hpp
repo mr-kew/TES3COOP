@@ -93,6 +93,8 @@ namespace MWRender
 
         void refreshFogOfWar(MWWorld::CellStore* cell);
 
+        void acknowledgeFog(const std::string& cellDescription, uint32_t updateId);
+
         /**
          * Get the interior map texture index and normalized position on this texture, given a world position
          */
@@ -160,7 +162,6 @@ namespace MWRender
         void requestInteriorMap(const MWWorld::CellStore* cell);
         bool sendFogOfWar(const MWWorld::CellStore* cell, const ESM::FogState& fog);
         bool sendPendingFog(const std::string& cellDescription);
-        void acknowledgeFog(const std::string& cellDescription, uint32_t updateId);
         void requestFogOfWar(const MWWorld::CellStore* cell);
         void syncDirtyFog();
 

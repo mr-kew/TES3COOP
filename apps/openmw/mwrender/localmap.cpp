@@ -248,12 +248,12 @@ bool LocalMap::sendFogOfWar(const MWWorld::CellStore* cell, const ESM::FogState&
     mwmp::LocalMapFogCell update;
     update.updateId = mNextFogUpdateId++;
     update.cellDescription = cell->getCell()->getShortDescription();
-    update.isInterior = cell->isInterior();
-    update.northMarkerAngle = cell->isInterior() ? fog.mNorthMarkerAngle : 0.f;
-    update.minX = cell->isInterior() ? fog.mBounds.mMinX : 0.f;
-    update.minY = cell->isInterior() ? fog.mBounds.mMinY : 0.f;
-    update.maxX = cell->isInterior() ? fog.mBounds.mMaxX : 0.f;
-    update.maxY = cell->isInterior() ? fog.mBounds.mMaxY : 0.f;
+    update.isInterior = !cell->isExterior();
+    update.northMarkerAngle = update.isInterior ? fog.mNorthMarkerAngle : 0.f;
+    update.minX = update.isInterior ? fog.mBounds.mMinX : 0.f;
+    update.minY = update.isInterior ? fog.mBounds.mMinY : 0.f;
+    update.maxX = update.isInterior ? fog.mBounds.mMaxX : 0.f;
+    update.maxY = update.isInterior ? fog.mBounds.mMaxY : 0.f;
     update.textures.clear();
     update.textures.reserve(fog.mFogTextures.size());
     for (const ESM::FogTexture& texture : fog.mFogTextures)
@@ -311,7 +311,7 @@ void LocalMap::requestFogOfWar(const MWWorld::CellStore* cell)
         return;
     }
     player->localMapFog.cellDescription = cellDescription;
-    player->localMapFog.isInterior = cell->isInterior();
+    player->localMapFog.isInterior = !cell->isExterior();
     player->localMapFog.textures.clear();
     player->localMapFogAction = mwmp::LOCAL_MAP_FOG_REQUEST;
     mwmp::PlayerPacket* packet = networking->getPlayerPacket(ID_PLAYER_LOCAL_MAP);
