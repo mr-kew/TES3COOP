@@ -1013,14 +1013,15 @@ cd $DEPS_INSTALL/..
 echo
 echo "Setting up OpenMW build..."
 if [ "${TES3MP_RELEASE_BUILD:-}" = "1" ]; then
-	# The portable TES3MP release needs the game, server, browser, launcher and wizard.
+	# The portable TES3MP release needs the game, server, browser, launcher,
+	# wizard and the INI importer used by first-run setup.
 	# Skip unrelated editor and developer utility targets to reduce CI build time.
 	add_cmake_opts -DBUILD_OPENCS=OFF \
 		-DBUILD_BSATOOL=OFF \
 		-DBUILD_ESMTOOL=OFF \
 		-DBUILD_NIFTEST=OFF \
 		-DBUILD_ESSIMPORTER=OFF \
-		-DBUILD_MWINIIMPORTER=OFF \
+		-DBUILD_MWINIIMPORTER=ON \
 		-DOPENMW_MP_BUILD=OFF
 else
 	add_cmake_opts -DOPENMW_MP_BUILD=on
