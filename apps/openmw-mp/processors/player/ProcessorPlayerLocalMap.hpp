@@ -17,9 +17,9 @@ namespace mwmp
 
         void Do(PlayerPacket&, Player& player) override
         {
-            LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE, "[LocalMap] Dispatching action %d for pid %u in %s (%u textures)",
-                player.localMapFogAction, static_cast<unsigned int>(player.getId()), player.localMapFog.cellDescription.c_str(),
-                static_cast<unsigned int>(player.localMapFog.textures.size()));
+            LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE, "Received %s from %s", strPacketID.c_str(), player.npc.mName.c_str());
+            LOG_APPEND(TimedLog::LOG_VERBOSE, "- action: %i\n- cell: %s\n- textures: %u", player.localMapFogAction,
+                player.localMapFog.cellDescription.c_str(), static_cast<unsigned int>(player.localMapFog.textures.size()));
             Script::Call<Script::CallbackIdentity("OnPlayerLocalMap")>(player.getId());
         }
     };

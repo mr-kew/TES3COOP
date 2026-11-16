@@ -6,7 +6,7 @@ local LOCAL_MAP_FOG_UPDATE = 1
 
 local UINT32 = 4294967296
 
-tes3mp.LogMessage(0, "[LocalMap] Persistence script loaded")
+tes3mp.LogMessage(enumerations.log.VERBOSE, "[LocalMap] Persistence script loaded")
 
 local function fogFileKey(playerName, cellDescription)
     local value = playerName .. "\0" .. cellDescription
@@ -40,16 +40,18 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
     local cellDescription = tes3mp.GetPlayerLocalMapFogCellDescription()
     local player = Players[pid]
 
-    tes3mp.LogMessage(0, "[LocalMap] Received action " .. action .. " for pid " .. pid ..
+    local actionName = action == LOCAL_MAP_FOG_REQUEST and "request" or
+        action == LOCAL_MAP_FOG_UPDATE and "update" or tostring(action)
+    tes3mp.LogMessage(enumerations.log.VERBOSE, "[LocalMap] Received fog " .. actionName .. " from pid " .. pid ..
         " in " .. (cellDescription or "<no cell>") ..
         " with " .. tes3mp.GetPlayerLocalMapFogTextureCount() .. " textures")
 
     if player == nil then
-        tes3mp.LogMessage(2, "[LocalMap] Ignored fog packet because pid " .. pid .. " has no player")
+        tes3mp.LogMessage(enumerations.log.WARN, "[LocalMap] Ignored fog packet because pid " .. pid .. " has no player")
         return eventStatus
     end
     if cellDescription == nil or cellDescription == "" then
-        tes3mp.LogMessage(2, "[LocalMap] Ignored fog packet with an empty cell description for pid " .. pid)
+        tes3mp.LogMessage(enumerations.log.WARN, "[LocalMap] Ignored fog packet with an empty cell description for pid " .. pid)
         return eventStatus
     end
     player.data = player.data or {}
@@ -57,7 +59,7 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
     if action == LOCAL_MAP_FOG_REQUEST then
         local saved = player.data.localMapFog and player.data.localMapFog[cellDescription]
         if saved == nil then
-            tes3mp.LogMessage(0, "[LocalMap] No saved fog for " .. tes3mp.GetName(pid) .. " in " .. cellDescription)
+            tes3mp.LogMessage(enumerations.log.VERBOSE, "[LocalMap] No saved fog for " .. tes3mp.GetName(pid) .. " in " .. cellDescription)
             return eventStatus
         end
 
@@ -72,17 +74,17 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
             end
             if not tes3mp.DoesFilePathExist(path) or
                 not tes3mp.LoadPlayerLocalMapFogTextureFile(pid, texture.x, texture.y, path) then
-                tes3mp.LogMessage(3, "[LocalMap] Could not load fog texture " .. path)
+                tes3mp.LogMessage(enumerations.log.ERROR, "[LocalMap] Could not load fog texture " .. path)
                 return eventStatus
             end
         end
 
         tes3mp.SendPlayerLocalMapFog(pid)
-        tes3mp.LogMessage(0, "[LocalMap] Restored fog for " .. tes3mp.GetName(pid) .. " in " .. cellDescription)
+        tes3mp.LogMessage(enumerations.log.VERBOSE, "[LocalMap] Restored fog for " .. tes3mp.GetName(pid) .. " in " .. cellDescription)
     elseif action == LOCAL_MAP_FOG_UPDATE then
         local textureCount = tes3mp.GetPlayerLocalMapFogTextureCount()
         if textureCount == 0 or textureCount > 128 then
-            tes3mp.LogMessage(2, "[LocalMap] Rejected fog update with " .. textureCount .. " textures for " .. cellDescription)
+            tes3mp.LogMessage(enumerations.log.WARN, "[LocalMap] Rejected fog update with " .. textureCount .. " textures for " .. cellDescription)
             return eventStatus
         end
 
@@ -103,7 +105,7 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
             local path = texturePath(pid, cellDescription, index)
             if not tes3mp.SavePlayerLocalMapFogTextureFile(index, path) or
                 not tes3mp.DoesFilePathExist(path) then
-                tes3mp.LogMessage(3, "[LocalMap] Could not save fog texture " .. path)
+                tes3mp.LogMessage(enumerations.log.ERROR, "[LocalMap] Could not save fog texture " .. path)
                 return eventStatus
             end
             table.insert(saved.textures, { x = x, y = y })
@@ -116,10 +118,22 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
         player:QuicksaveToDrive()
 
         tes3mp.AcknowledgePlayerLocalMapFog(pid)
-        tes3mp.LogMessage(0, "[LocalMap] Saved fog for " .. tes3mp.GetName(pid) .. " in " .. cellDescription)
+        tes3mp.LogMessage(enumerations.log.VERBOSE, "[LocalMap] Saved fog for " .. tes3mp.GetName(pid) .. " in " .. cellDescription)
     end
 
     return eventStatus
 end)
+
+-- CoreScripts 0.8.1 has no OnPlayerLocalMap callback bridge. The C++ packet
+-- processor calls eventHandler.OnPlayerLocalMap, so install it here to route
+-- received packets through the custom event hooks above.
+eventHandler.OnPlayerLocalMap = function(pid)
+    if Players[pid] == nil or not Players[pid]:IsLoggedIn() then
+        return
+    end
+
+    local eventStatus = customEventHooks.triggerValidators("OnPlayerLocalMap", { pid })
+    customEventHooks.triggerHandlers("OnPlayerLocalMap", eventStatus, { pid })
+end
 
 return {}
