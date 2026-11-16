@@ -220,6 +220,10 @@ jobs:
           foreach ($folder in @('data', 'lib', 'scripts')) {
             Copy-Item "deps\CoreScripts\$folder" $serverDir -Recurse
           }
+          python server-scripts/whitelists/compile_whitelists.py `
+            --core-scripts (Join-Path $serverDir 'scripts') `
+            --whitelist-dir server-scripts/whitelists/tr_26_08b
+          if ($LASTEXITCODE -ne 0) { throw 'Compiling the Tamriel Rebuilt whitelists failed.' }
           New-Item -ItemType Directory -Force -Path (Join-Path $serverDir 'data\map') | Out-Null
 
           $serverLibDir = Join-Path $serverDir 'lib'

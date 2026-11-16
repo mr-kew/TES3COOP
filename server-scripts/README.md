@@ -1,5 +1,18 @@
 # Server script features
 
+## Tamriel Rebuilt whitelist data
+
+The Tamriel Rebuilt 26.08b whitelist source files live in
+`server-scripts/whitelists/tr_26_08b/`. Edit the global categories in
+`clientVariableScopes.lua` or the synchronized script IDs in
+`synchronizedClientScriptIds.lua` when a campaign bug needs another entry.
+
+The Windows release workflow runs `whitelists/compile_whitelists.py` after
+copying CoreScripts. It merges the global additions into
+`server/scripts/clientVariableScopes.lua` when `TR_Mainland.esm` is enabled and
+adds the script IDs to `server/scripts/config.lua`, keeping existing CoreScripts
+entries. The compiler is safe to run more than once on the same files.
+
 ## Friendly fire
 
 Friendly fire is configured as a server multiplayer rule in CoreScripts, separate
