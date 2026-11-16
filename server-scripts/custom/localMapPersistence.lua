@@ -125,8 +125,8 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
 end)
 
 -- CoreScripts 0.8.1 has no OnPlayerLocalMap callback bridge. The C++ packet
--- processor calls eventHandler.OnPlayerLocalMap, so install it here to route
--- received packets through the custom event hooks above.
+-- processor looks up a global OnPlayerLocalMap function, so install the
+-- eventHandler method and global wrapper here.
 eventHandler.OnPlayerLocalMap = function(pid)
     if Players[pid] == nil or not Players[pid]:IsLoggedIn() then
         return
@@ -134,6 +134,10 @@ eventHandler.OnPlayerLocalMap = function(pid)
 
     local eventStatus = customEventHooks.triggerValidators("OnPlayerLocalMap", { pid })
     customEventHooks.triggerHandlers("OnPlayerLocalMap", eventStatus, { pid })
+end
+
+function OnPlayerLocalMap(pid)
+    eventHandler.OnPlayerLocalMap(pid)
 end
 
 return {}
