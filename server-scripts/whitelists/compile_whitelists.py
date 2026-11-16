@@ -95,19 +95,20 @@ def patch_script_ids(path: Path, additions: list[str]) -> None:
     missing = [value for value in additions if value.lower() not in existing]
     if missing:
         # The original list may not have a trailing comma. Add a separator
-        # before our entries, and leave the final generated entry uncomma'd.
-        last_entry = list(re.finditer(r'(?m)^(\s*"(?:\\.|[^"\\])*"\s*),?\s*$', block))
-        if last_entry:
-            entry = last_entry[-1]
-            line = entry.group(0)
-            if not line.rstrip().endswith(","):
-                line = line.rstrip() + ","
-                block = block[: entry.start()] + line + block[entry.end() :]
+        # after its final string, even when comments follow that entry.
+        entries = list(re.finditer(r'"(?:\\.|[^"\\])*"', block))
+        if entries:
+            last_entry = entries[-1]
+            following = block[last_entry.end() :]
+            if not re.match(r"\s*,", following):
+                insertion = last_entry.end()
+                block = block[:insertion] + "," + block[insertion:]
                 text = text[: match.end()] + block + text[close:]
-                close += len(block) - (close - match.end())
+                close += 1
 
         generated = "\n" + SCRIPTS_MARKER_START + "\n" + "\n".join(
-            f"    {lua_quote(value)}" for value in missing
+            f"    {lua_quote(value)}" + ("," if index < len(missing) - 1 else "")
+            for index, value in enumerate(missing)
         ) + "\n" + SCRIPTS_MARKER_END + "\n"
         text = text[:close] + generated + text[close:]
     path.write_text(text, encoding="utf-8", newline="")
