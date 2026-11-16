@@ -94,8 +94,20 @@ def patch_script_ids(path: Path, additions: list[str]) -> None:
     existing = {value.lower() for value in read_lua_strings(block)}
     missing = [value for value in additions if value.lower() not in existing]
     if missing:
+        # The original list may not have a trailing comma. Add a separator
+        # before our entries, and leave the final generated entry uncomma'd.
+        last_entry = list(re.finditer(r'(?m)^(\s*"(?:\\.|[^"\\])*"\s*),?\s*$', block))
+        if last_entry:
+            entry = last_entry[-1]
+            line = entry.group(0)
+            if not line.rstrip().endswith(","):
+                line = line.rstrip() + ","
+                block = block[: entry.start()] + line + block[entry.end() :]
+                text = text[: match.end()] + block + text[close:]
+                close += len(block) - (close - match.end())
+
         generated = "\n" + SCRIPTS_MARKER_START + "\n" + "\n".join(
-            f"    {lua_quote(value)}," for value in missing
+            f"    {lua_quote(value)}" for value in missing
         ) + "\n" + SCRIPTS_MARKER_END + "\n"
         text = text[:close] + generated + text[close:]
     path.write_text(text, encoding="utf-8", newline="")
