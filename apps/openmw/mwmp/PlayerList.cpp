@@ -66,18 +66,13 @@ DedicatedPlayer *PlayerList::getPlayer(RakNet::RakNetGUID guid)
 
 DedicatedPlayer *PlayerList::getPlayer(const MWWorld::Ptr &ptr)
 {
-    for (auto &playerEntry : playerList)
-    {
-        if (playerEntry.second == nullptr || playerEntry.second->getPtr().mRef == nullptr)
-            continue;
-        
-        std::string refId = ptr.getCellRef().getRefId();
-        
-        if (playerEntry.second->getPtr().getCellRef().getRefId() == refId)
-            return playerEntry.second;
-    }
+    if (ptr.mRef == nullptr || !ptr.getClass().isActor())
+        return nullptr;
 
-    return nullptr;
+    // Every multiplayer player uses the same base refId ("player"), so the
+    // actor ID is needed to distinguish their world references.
+    int actorId = ptr.getClass().getCreatureStats(ptr).getActorId();
+    return getPlayer(actorId);
 }
 
 DedicatedPlayer* PlayerList::getPlayer(int actorId)

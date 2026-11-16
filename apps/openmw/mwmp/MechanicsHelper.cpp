@@ -349,6 +349,14 @@ bool MechanicsHelper::isFriendlyFireDisabled(const MWWorld::Ptr& victim, const M
     if (Settings::Manager::getBool("friendly fire", "Game"))
         return false;
 
+    // This policy applies only to damage against human players. NPCs and
+    // creatures remain valid targets, including for player summons.
+    const MWWorld::Ptr localPlayer = MWMechanics::getPlayer();
+    const bool victimIsPlayer = (!localPlayer.isEmpty() && victim == localPlayer)
+        || PlayerList::isDedicatedPlayer(victim);
+    if (!victimIsPlayer)
+        return false;
+
     if (isTeamMember(victim, attacker))
         return true;
 
@@ -358,7 +366,6 @@ bool MechanicsHelper::isFriendlyFireDisabled(const MWWorld::Ptr& victim, const M
     int attackerActorId = attacker.getClass().getCreatureStats(attacker).getActorId();
     MWWorld::Ptr summonOwner;
 
-    MWWorld::Ptr localPlayer = MWMechanics::getPlayer();
     if (!localPlayer.isEmpty())
     {
         const auto& summonedCreatures = localPlayer.getClass().getCreatureStats(localPlayer).getSummonedCreatureMap();
