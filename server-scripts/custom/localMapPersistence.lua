@@ -75,6 +75,15 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
         " in " .. (cellDescription or "<no cell>") ..
         " with " .. tes3mp.GetPlayerLocalMapFogTextureCount() .. " textures")
 
+    if config.persistLocalMap ~= true then
+        -- Updates need an acknowledgement so the client can clear its pending
+        -- copy, even when the server is configured not to persist the images.
+        if action == LOCAL_MAP_FOG_UPDATE then
+            tes3mp.AcknowledgePlayerLocalMapFog(pid)
+        end
+        return eventStatus
+    end
+
     if player == nil then
         tes3mp.LogMessage(enumerations.log.WARN, "[LocalMap] Ignored fog packet because pid " .. pid .. " has no player")
         return eventStatus

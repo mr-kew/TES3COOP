@@ -252,6 +252,7 @@ jobs:
           $configFile = Join-Path $serverDir 'scripts\config.lua'
           if (-not (Test-Path $configFile)) { throw 'CoreScripts config.lua was not found.' }
           $dispositionSetting = 'config.persistNpcDispositions = true'
+          $localMapSetting = 'config.persistLocalMap = false'
           $friendlyFireSetting = 'config.friendlyFire = true'
           $configLines = [System.Collections.Generic.List[string]]::new()
           $configLines.AddRange([string[]](Get-Content -Path $configFile))
@@ -279,8 +280,18 @@ jobs:
               $friendlyFireSetting
             ))
           }
+          if (-not ($configLines -contains $localMapSetting)) {
+            $dispositionIndex = $configLines.IndexOf($dispositionSetting)
+            if ($dispositionIndex -lt 0) { throw 'Could not find the NPC disposition setting in config.lua.' }
+            $configLines.InsertRange($dispositionIndex + 1, [string[]]@(
+              '',
+              '-- Whether local map fog should persist for each player',
+              $localMapSetting
+            ))
+          }
           if (-not (Select-String -Path $configFile -SimpleMatch $dispositionSetting -Quiet) -or
-              -not (Select-String -Path $configFile -SimpleMatch $friendlyFireSetting -Quiet)) {
+              -not (Select-String -Path $configFile -SimpleMatch $friendlyFireSetting -Quiet) -or
+              -not (Select-String -Path $configFile -SimpleMatch $localMapSetting -Quiet)) {
             Set-Content -Path $configFile -Value $configLines -Encoding utf8
           }
 

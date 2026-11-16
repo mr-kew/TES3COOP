@@ -64,14 +64,16 @@ CoreScripts 0.8.1 server:
 1. Copy `custom/localMapPersistence.lua` into `CoreScripts/scripts/custom/`.
 2. Add `require("custom/localMapPersistence")` to
    `CoreScripts/scripts/customScripts.lua`.
-3. Ensure the server's `data/map/` directory exists and is writable.
-4. Restart the server.
+3. Set `config.persistLocalMap = true` in `CoreScripts/scripts/config.lua`.
+   It defaults to `false` in the Windows release package.
+4. Ensure the server's `data/map/` directory exists and is writable.
+5. Restart the server.
 
-There is no configuration setting to enable or disable local-map persistence. The
-Windows release ZIP includes and loads the plugin automatically. Fog is requested
-as cells become active and uploaded when changed cells unload (with periodic
-syncs while exploring), so reconnecting does not download the player's entire
-explored map at once.
+The Windows release ZIP includes and loads the plugin automatically. When
+`config.persistLocalMap` is `false`, the server acknowledges fog updates but does
+not save or restore them. Fog is requested as cells become active and uploaded
+when changed cells unload (with periodic syncs while exploring), so reconnecting
+does not download the player's entire explored map at once.
 Back up `data/map/` along with the normal player save data to preserve these maps.
 
 ## NPC disposition persistence
