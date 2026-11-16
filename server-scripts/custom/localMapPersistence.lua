@@ -28,6 +28,12 @@ local function hashedTexturePath(pid, cellDescription, textureIndex)
     return config.dataPath .. "/map/local_" .. key .. "_" .. textureIndex .. ".png"
 end
 
+local function interiorTexturePath(pid, cellDescription, textureIndex)
+    local cellKey = fogFileKey("", cellDescription)
+    local playerKey = fogFileKey(tes3mp.GetName(pid), "")
+    return config.dataPath .. "/map/" .. cellKey .. "_local_" .. playerKey .. "_" .. textureIndex .. ".png"
+end
+
 local function legacyTexturePath(pid, cellDescription, textureIndex, version)
     local playerName = tes3mp.GetName(pid)
     local key = fogFileKey(playerName, cellDescription)
@@ -50,7 +56,7 @@ end
 
 local function texturePath(pid, cellDescription, textureIndex, isInterior)
     if isInterior then
-        return hashedTexturePath(pid, cellDescription, textureIndex)
+        return interiorTexturePath(pid, cellDescription, textureIndex)
     end
 
     -- The network GUID and server pid identify a connection/session, not the
@@ -179,14 +185,12 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
         player.data.localMapFog[cellDescription] = saved
         player:QuicksaveToDrive()
 
-        -- Remove hashed files from older versions after all readable-name
-        -- texture files and the updated player metadata have been saved.
+        -- Remove files from older naming schemes after the new texture files
+        -- and updated player metadata have been saved.
         local oldTextureCount = previous and #(previous.textures or {}) or textureCount
         for index = 0, math.max(oldTextureCount, textureCount) - 1 do
             local oldPaths = { previousReadableTexturePath(pid, cellDescription, index) }
-            if not saved.isInterior then
-                table.insert(oldPaths, hashedTexturePath(pid, cellDescription, index))
-            end
+            table.insert(oldPaths, hashedTexturePath(pid, cellDescription, index))
             if previous and previous.version ~= nil then
                 table.insert(oldPaths, legacyTexturePath(pid, cellDescription, index, previous.version))
             end
