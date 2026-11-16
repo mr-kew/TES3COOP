@@ -8,8 +8,7 @@ local UINT32 = 4294967296
 
 tes3mp.LogMessage(enumerations.log.VERBOSE, "[LocalMap] Persistence script loaded")
 
-local function fogFileKey(playerName, cellDescription)
-    local value = playerName .. "\0" .. cellDescription
+local function hashValue(value)
     local first = 5381
     local second = 0
 
@@ -22,24 +21,6 @@ local function fogFileKey(playerName, cellDescription)
     return string.format("%08x%08x", first, second)
 end
 
-local function hashedTexturePath(pid, cellDescription, textureIndex)
-    local playerName = tes3mp.GetName(pid)
-    local key = fogFileKey(playerName, cellDescription)
-    return config.dataPath .. "/map/local_" .. key .. "_" .. textureIndex .. ".png"
-end
-
-local function interiorTexturePath(pid, cellDescription, textureIndex)
-    local cellKey = fogFileKey("", cellDescription)
-    local playerKey = fogFileKey(tes3mp.GetName(pid), "")
-    return config.dataPath .. "/map/" .. cellKey .. "_local_" .. playerKey .. "_" .. textureIndex .. ".png"
-end
-
-local function legacyTexturePath(pid, cellDescription, textureIndex, version)
-    local playerName = tes3mp.GetName(pid)
-    local key = fogFileKey(playerName, cellDescription)
-    return config.dataPath .. "/map/local_" .. key .. "_" .. version .. "_" .. textureIndex .. ".png"
-end
-
 local function readableFilePart(value)
     local encoded = string.gsub(value, "[^%w%-, _]", function(character)
         return string.format("%%%02X", string.byte(character))
@@ -48,29 +29,21 @@ local function readableFilePart(value)
     -- Keep Windows filenames comfortably below the per-component path limit,
     -- while preserving a readable prefix and a stable disambiguating suffix.
     if #encoded > 96 then
-        encoded = string.sub(encoded, 1, 72) .. "_" .. fogFileKey("", value)
+        encoded = string.sub(encoded, 1, 72) .. "_" .. hashValue(value)
     end
 
     return encoded
 end
 
 local function texturePath(pid, cellDescription, textureIndex, isInterior)
+    local playerKey = hashValue(tes3mp.GetName(pid))
     if isInterior then
-        return interiorTexturePath(pid, cellDescription, textureIndex)
+        local cellKey = hashValue(cellDescription)
+        return config.dataPath .. "/map/" .. cellKey .. "_local_" .. playerKey .. "_" .. textureIndex .. ".png"
     end
 
-    -- The network GUID and server pid identify a connection/session, not the
-    -- saved player. The character name is the identity used by the player
-    -- save system, so hash it for a short, filesystem-safe per-player prefix.
-    local playerKey = fogFileKey(tes3mp.GetName(pid), "")
     return config.dataPath .. "/map/" .. readableFilePart(cellDescription) ..
         "_local_" .. playerKey .. "_" .. textureIndex .. ".png"
-end
-
-local function previousReadableTexturePath(pid, cellDescription, textureIndex)
-    local playerKey = fogFileKey(tes3mp.GetName(pid), "")
-    return config.dataPath .. "/map/local_" .. playerKey .. "_" ..
-        readableFilePart(cellDescription) .. "_" .. textureIndex .. ".png"
 end
 
 customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
@@ -117,28 +90,6 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
 
         for index, texture in ipairs(saved.textures or {}) do
             local path = texturePath(pid, cellDescription, index - 1, saved.isInterior)
-            if not tes3mp.DoesFilePathExist(path) then
-                local oldReadablePath = previousReadableTexturePath(pid, cellDescription, index - 1)
-                local oldHashedPath = hashedTexturePath(pid, cellDescription, index - 1)
-                if tes3mp.DoesFilePathExist(oldReadablePath) then
-                    if not os.rename(oldReadablePath, path) then
-                        path = oldReadablePath
-                    end
-                elseif tes3mp.DoesFilePathExist(oldHashedPath) then
-                    if not os.rename(oldHashedPath, path) then
-                        path = oldHashedPath
-                    end
-                elseif saved.version ~= nil then
-                    path = legacyTexturePath(pid, cellDescription, index - 1, saved.version)
-                    if tes3mp.DoesFilePathExist(path) then
-                        local legacyPath = path
-                        path = texturePath(pid, cellDescription, index - 1, saved.isInterior)
-                        if not os.rename(legacyPath, path) then
-                            path = legacyPath
-                        end
-                    end
-                end
-            end
             if not tes3mp.DoesFilePathExist(path) or
                 not tes3mp.LoadPlayerLocalMapFogTextureFile(pid, texture.x, texture.y, path) then
                 tes3mp.LogMessage(enumerations.log.ERROR, "[LocalMap] Could not load fog texture " .. path)
@@ -169,7 +120,7 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
         for index = 0, textureCount - 1 do
             local x = tes3mp.GetPlayerLocalMapFogTextureX(index)
             local y = tes3mp.GetPlayerLocalMapFogTextureY(index)
-            local path = texturePath(pid, cellDescription, index, tes3mp.GetPlayerLocalMapFogIsInterior())
+            local path = texturePath(pid, cellDescription, index, saved.isInterior)
             if not tes3mp.SavePlayerLocalMapFogTextureFile(index, path) or
                 not tes3mp.DoesFilePathExist(path) then
                 tes3mp.LogMessage(enumerations.log.ERROR, "[LocalMap] Could not save fog texture " .. path)
@@ -185,22 +136,15 @@ customEventHooks.registerHandler("OnPlayerLocalMap", function(eventStatus, pid)
         player.data.localMapFog[cellDescription] = saved
         player:QuicksaveToDrive()
 
-        -- Remove files from older naming schemes after the new texture files
-        -- and updated player metadata have been saved.
+        -- Remove extra tiles if the updated map has fewer textures.
         local oldTextureCount = previous and #(previous.textures or {}) or textureCount
-        for index = 0, math.max(oldTextureCount, textureCount) - 1 do
-            local oldPaths = { previousReadableTexturePath(pid, cellDescription, index) }
-            table.insert(oldPaths, hashedTexturePath(pid, cellDescription, index))
-            if previous and previous.version ~= nil then
-                table.insert(oldPaths, legacyTexturePath(pid, cellDescription, index, previous.version))
-            end
-            for _, oldPath in ipairs(oldPaths) do
-                if tes3mp.DoesFilePathExist(oldPath) then
-                    local removed = os.remove(oldPath)
-                    if not removed and tes3mp.DoesFilePathExist(oldPath) then
-                        tes3mp.LogMessage(enumerations.log.WARN,
-                            "[LocalMap] Could not remove old fog texture " .. oldPath)
-                    end
+        for index = textureCount, oldTextureCount - 1 do
+            local oldPath = texturePath(pid, cellDescription, index, saved.isInterior)
+            if tes3mp.DoesFilePathExist(oldPath) then
+                local removed = os.remove(oldPath)
+                if not removed and tes3mp.DoesFilePathExist(oldPath) then
+                    tes3mp.LogMessage(enumerations.log.WARN,
+                        "[LocalMap] Could not remove unused fog texture " .. oldPath)
                 end
             end
         end
