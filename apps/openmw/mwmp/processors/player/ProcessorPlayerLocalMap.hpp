@@ -7,6 +7,7 @@
 #include "apps/openmw/mwbase/world.hpp"
 #include "apps/openmw/mwbase/windowmanager.hpp"
 #include "apps/openmw/mwworld/cellstore.hpp"
+#include <components/openmw-mp/TimedLog.hpp>
 
 #include <memory>
 #include <sstream>
@@ -30,11 +31,15 @@ namespace mwmp
             const LocalMapFogCell& source = player->localMapFog;
             if (player->localMapFogAction == LOCAL_MAP_FOG_ACK)
             {
+                LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE, "[LocalMap] Received save acknowledgement for %s (id %u)",
+                    source.cellDescription.c_str(), source.updateId);
                 MWBase::Environment::get().getWindowManager()->acknowledgeLocalMapFog(source.cellDescription, source.updateId);
                 return;
             }
             if (player->localMapFogAction != LOCAL_MAP_FOG_RESPONSE)
                 return;
+            LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE, "[LocalMap] Received saved fog for %s (%u textures)",
+                source.cellDescription.c_str(), static_cast<unsigned int>(source.textures.size()));
             MWWorld::CellStore* cell = nullptr;
             MWBase::World* world = MWBase::Environment::get().getWorld();
             if (source.isInterior)

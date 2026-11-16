@@ -24,6 +24,7 @@
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/files/memorystream.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/openmw-mp/TimedLog.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -266,6 +267,9 @@ bool LocalMap::sendFogOfWar(const MWWorld::CellStore* cell, const ESM::FogState&
     }
 
     mPendingFog[update.cellDescription] = update;
+    LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE,
+        "[LocalMap] Queued fog update for %s (%u textures, %u image bytes)", update.cellDescription.c_str(),
+        static_cast<unsigned int>(update.textures.size()), static_cast<unsigned int>(imageBytes));
     return sendPendingFog(update.cellDescription);
 }
 
@@ -284,7 +288,12 @@ bool LocalMap::sendPendingFog(const std::string& cellDescription)
     player->localMapFogAction = mwmp::LOCAL_MAP_FOG_UPDATE;
     mwmp::PlayerPacket* packet = networking->getPlayerPacket(ID_PLAYER_LOCAL_MAP);
     packet->setPlayer(player);
-    return packet->Send() != 0;
+    const bool sent = packet->Send() != 0;
+    if (sent)
+        LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE,
+            "[LocalMap] Sent fog update for %s (id %u, %u textures)", cellDescription.c_str(),
+            pending->second.updateId, static_cast<unsigned int>(pending->second.textures.size()));
+    return sent;
 }
 
 void LocalMap::acknowledgeFog(const std::string& cellDescription, uint32_t updateId)
@@ -336,7 +345,10 @@ bool LocalMap::sendFogRequest(const std::string& cellDescription, bool isInterio
     player->localMapFogAction = mwmp::LOCAL_MAP_FOG_REQUEST;
     mwmp::PlayerPacket* packet = networking->getPlayerPacket(ID_PLAYER_LOCAL_MAP);
     packet->setPlayer(player);
-    return packet->Send() != 0;
+    const bool sent = packet->Send() != 0;
+    if (sent)
+        LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE, "[LocalMap] Sent fog request for %s", cellDescription.c_str());
+    return sent;
 }
 
 void LocalMap::syncDirtyFog()

@@ -2,11 +2,6 @@ name: Build Windows TES3MP release
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - topic-journal-release
-    tags:
-      - "topic-journal-*"
 
 permissions:
   contents: write
