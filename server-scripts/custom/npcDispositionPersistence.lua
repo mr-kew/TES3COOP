@@ -2,7 +2,6 @@
 -- Requires the matching TES3COOP client/server build.
 
 local NPC_DISPOSITION = 10
-local STORAGE_VERSION = 2
 local OBJECTS_PER_PACKET = 100
 local BaseCell = require("cell.base")
 
@@ -13,25 +12,6 @@ enumerations.dialogueChoice.NPC_DISPOSITION = NPC_DISPOSITION
 local function getDispositions(player)
     if player.data.npcDispositions == nil then
         player.data.npcDispositions = {}
-    end
-
-    -- Migrate the earlier cell -> uniqueIndex -> record layout. Keep the
-    -- reference ID alongside the unique index to identify the exact NPC.
-    if player.data.npcDispositionStorageVersion ~= STORAGE_VERSION then
-        local migrated = {}
-        for _, byCell in pairs(player.data.npcDispositions) do
-            if type(byCell) == "table" then
-                for uniqueIndex, npc in pairs(byCell) do
-                    if type(npc) == "table" and npc.refId ~= nil and npc.disposition ~= nil then
-                        migrated[npc.refId] = migrated[npc.refId] or {}
-                        migrated[npc.refId][uniqueIndex] = npc.disposition
-                    end
-                end
-            end
-        end
-        player.data.npcDispositions = migrated
-        player.data.npcDispositionStorageVersion = STORAGE_VERSION
-        player:QuicksaveToDrive()
     end
 
     return player.data.npcDispositions
