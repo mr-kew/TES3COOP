@@ -37,13 +37,13 @@ namespace MWClass
         return false;
     }
 
-    void CreatureLevList::respawn(const MWWorld::Ptr &ptr) const
+    bool CreatureLevList::respawn(const MWWorld::Ptr &ptr) const
     {
         ensureCustomData(ptr);
 
         CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->asCreatureLevListCustomData();
         if (customData.mSpawn)
-            return;
+            return false;
 
         MWWorld::Ptr creature = (customData.mSpawnActorId == -1) ? MWWorld::Ptr() : MWBase::Environment::get().getWorld()->searchPtrViaActorId(customData.mSpawnActorId);
         if (!creature.isEmpty())
@@ -64,6 +64,8 @@ namespace MWClass
         }
         else
             customData.mSpawn = true;
+
+        return customData.mSpawn;
     }
 
     void CreatureLevList::registerSelf()

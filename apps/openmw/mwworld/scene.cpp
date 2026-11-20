@@ -379,7 +379,9 @@ namespace MWWorld
 
             Store a cell unload for the LocalPlayer
         */
-        mwmp::Main::get().getLocalPlayer()->storeCellState(*cell, mwmp::CellState::UNLOAD);
+        const MWWorld::TimeStamp lastRespawn = (*iter)->getLastRespawn();
+        mwmp::Main::get().getLocalPlayer()->storeCellState(*cell, mwmp::CellState::UNLOAD,
+            lastRespawn.getHour(), lastRespawn.getDay());
         /*
             End of tes3mp addition
         */
@@ -433,8 +435,35 @@ namespace MWWorld
             // do this before insertCell, to make sure we don't add scripts from levelled creature spawning twice
             MWBase::Environment::get().getWorld()->getLocalScripts().addCell (cell);
 
-            if (respawn)
+            const bool deferRespawnToAuthority = mwmp::Main::isInitialized()
+                && mwmp::Main::get().getNetworking()->isConnected();
+            if (respawn && !deferRespawnToAuthority)
                 cell->respawn();
+            else if (respawn && deferRespawnToAuthority)
+            {
+                // Native actor respawn must run before insertion. Its delta is
+                // queued until the server confirms this client as cell authority.
+                // Container respawn waits for the server's canonical timestamp.
+                const auto respawned = cell->respawn(false, true);
+                if (!respawned.empty())
+                {
+                    mwmp::CellRespawnUpdate update;
+                    update.cellDescription = cell->getCell()->getShortDescription();
+                    const MWWorld::TimeStamp lastRespawn = cell->getLastRespawn();
+                    update.lastRespawnHour = lastRespawn.getHour();
+                    update.lastRespawnDay = lastRespawn.getDay();
+                    for (const auto& reference : respawned)
+                    {
+                        mwmp::CellRespawnedReference networkReference;
+                        networkReference.refNum = reference.refNum;
+                        networkReference.mpNum = reference.mpNum;
+                        networkReference.type = reference.type;
+                        networkReference.currentCell = reference.currentCell;
+                        update.references.push_back(std::move(networkReference));
+                    }
+                    mwmp::Main::get().getLocalPlayer()->queueCellRespawnUpdate(update);
+                }
+            }
 
             // ... then references. This is important for adjustPosition to work correctly.
             insertCell (*cell, loadingListener, test);
@@ -480,7 +509,9 @@ namespace MWWorld
 
                     Store a cell load for the LocalPlayer
                 */
-                mwmp::Main::get().getLocalPlayer()->storeCellState(*cell->getCell(), mwmp::CellState::LOAD);
+                const MWWorld::TimeStamp lastRespawn = cell->getLastRespawn();
+                mwmp::Main::get().getLocalPlayer()->storeCellState(*cell->getCell(), mwmp::CellState::LOAD,
+                    lastRespawn.getHour(), lastRespawn.getDay());
                 /*
                     End of tes3mp addition
                 */

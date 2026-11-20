@@ -1585,14 +1585,14 @@ namespace MWClass
         return true;
     }
 
-    void Npc::respawn(const MWWorld::Ptr &ptr) const
+    bool Npc::respawn(const MWWorld::Ptr &ptr) const
     {
         const MWMechanics::CreatureStats& creatureStats = getCreatureStats(ptr);
         if (ptr.getRefData().getCount() > 0 && !creatureStats.isDead())
-            return;
+            return false;
 
         if (!creatureStats.isDeathAnimationFinished())
-            return;
+            return false;
 
         const MWWorld::Store<ESM::GameSetting>& gmst = MWBase::Environment::get().getWorld()->getStore().get<ESM::GameSetting>();
         static const float fCorpseRespawnDelay = gmst.find("fCorpseRespawnDelay")->mValue.getFloat();
@@ -1620,8 +1620,11 @@ namespace MWClass
                 MWBase::Environment::get().getWorld()->moveObject(ptr, ptr.getCellRef().getPosition().pos[0],
                         ptr.getCellRef().getPosition().pos[1],
                         ptr.getCellRef().getPosition().pos[2]);
+                return true;
             }
         }
+
+        return false;
     }
 
     int Npc::getBaseFightRating (const MWWorld::ConstPtr& ptr) const

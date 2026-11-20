@@ -212,6 +212,7 @@ void Main::updateWorld(float dt) const
     {
         mLocalPlayer->update();
         mCellController->updateLocal(false);
+        mLocalPlayer->updateCellRespawnQueue();
     }
 }
 

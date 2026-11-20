@@ -96,7 +96,7 @@ set(PROCESSORS_PLAYER
         processors/player/ProcessorPlayerAttack.hpp processors/player/ProcessorPlayerAttribute.hpp
         processors/player/ProcessorPlayerBook.hpp processors/player/ProcessorPlayerBounty.hpp
         processors/player/ProcessorPlayerCast.hpp processors/player/ProcessorPlayerCellChange.hpp
-        processors/player/ProcessorPlayerCellState.hpp processors/player/ProcessorPlayerLocalMap.hpp processors/player/ProcessorPlayerCharClass.hpp
+        processors/player/ProcessorPlayerCellState.hpp processors/player/ProcessorPlayerLocalMap.hpp processors/player/ProcessorPlayerCellRespawn.hpp processors/player/ProcessorPlayerCharClass.hpp
         processors/player/ProcessorPlayerCharGen.hpp processors/player/ProcessorPlayerCooldowns.hpp
         processors/player/ProcessorPlayerDeath.hpp processors/player/ProcessorPlayerDisposition.hpp
         processors/player/ProcessorPlayerEquipment.hpp processors/player/ProcessorPlayerFaction.hpp

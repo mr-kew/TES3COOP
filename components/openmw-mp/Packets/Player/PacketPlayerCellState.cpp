@@ -31,5 +31,7 @@ void mwmp::PacketPlayerCellState::Packet(RakNet::BitStream *newBitstream, bool s
         RW(cellState.type, send);
         RW(cellState.cell.mData, send, true);
         RW(cellState.cell.mName, send, true);
+        RW(cellState.lastRespawnHour, send);
+        RW(cellState.lastRespawnDay, send);
     }
 }

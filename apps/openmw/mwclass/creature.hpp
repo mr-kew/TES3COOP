@@ -131,7 +131,7 @@ namespace MWClass
 
             int getBaseGold(const MWWorld::ConstPtr& ptr) const override;
 
-            void respawn (const MWWorld::Ptr& ptr) const override;
+            bool respawn (const MWWorld::Ptr& ptr) const override;
 
             int getBaseFightRating(const MWWorld::ConstPtr &ptr) const override;
 

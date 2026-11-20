@@ -85,6 +85,8 @@ namespace mwmp
     struct CellState
     {
         ESM::Cell cell;
+        float lastRespawnHour = 0.f;
+        int lastRespawnDay = 0;
 
         enum CELL_STATE_ACTION
         {
@@ -115,12 +117,39 @@ namespace mwmp
         std::vector<LocalMapFogTexture> textures;
     };
 
+    struct CellRespawnedReference
+    {
+        uint32_t refNum = 0;
+        uint32_t mpNum = 0;
+        uint8_t type = 0;
+        std::string currentCell;
+    };
+
+    struct CellRespawnUpdate
+    {
+        uint32_t updateId = 0;
+        std::string cellDescription;
+        float lastRespawnHour = 0.f;
+        int lastRespawnDay = 0;
+        bool shouldRespawn = false;
+        std::vector<CellRespawnedReference> references;
+    };
+
     enum LOCAL_MAP_FOG_ACTION
     {
         LOCAL_MAP_FOG_REQUEST = 0,
         LOCAL_MAP_FOG_UPDATE = 1,
         LOCAL_MAP_FOG_RESPONSE = 2,
         LOCAL_MAP_FOG_ACK = 3
+    };
+
+    enum CELL_RESPAWN_ACTION
+    {
+        CELL_RESPAWN_UPDATE = 0,
+        CELL_RESPAWN_ACK = 1,
+        CELL_RESPAWN_DEFER = 2,
+        CELL_RESPAWN_APPLY = 3,
+        CELL_RESPAWN_STATE = 4
     };
 
     struct FactionChanges
@@ -253,6 +282,8 @@ namespace mwmp
         std::vector<CellState> cellStateChanges;
         LocalMapFogCell localMapFog;
         int localMapFogAction = LOCAL_MAP_FOG_REQUEST;
+        CellRespawnUpdate cellRespawn;
+        int cellRespawnAction = CELL_RESPAWN_UPDATE;
 
         std::vector<RakNet::RakNetGUID> alliedPlayers;
         CurrentContainer currentContainer;

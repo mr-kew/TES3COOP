@@ -53,6 +53,21 @@ namespace MWWorld
     {
         public:
 
+            enum VanillaRespawnType : unsigned char
+            {
+                RespawnContainer = 0,
+                RespawnActor = 1,
+                RespawnCreatureList = 2
+            };
+
+            struct VanillaRespawnedReference
+            {
+                unsigned int refNum = 0;
+                unsigned int mpNum = 0;
+                VanillaRespawnType type = RespawnContainer;
+                std::string currentCell;
+            };
+
             enum State
             {
                 State_Unloaded, State_Preloaded, State_Loaded
@@ -466,8 +481,11 @@ namespace MWWorld
             /// @param callback to use for retrieving of additional CellStore objects by ID (required for resolving moved references)
             void readReferences (ESM::ESMReader& reader, const std::map<int, int>& contentFileMap, GetCellStoreCallback* callback);
 
-            void respawn ();
-            ///< Check mLastRespawn and respawn references if necessary. This is a no-op if the cell is not loaded.
+            std::vector<VanillaRespawnedReference> respawn (bool respawnContainers = true, bool respawnActors = true);
+            ///< Check mLastRespawn and respawn references if necessary. Returns only references changed by respawn.
+
+            TimeStamp getLastRespawn() const { return mLastRespawn; }
+            void setLastRespawn(const TimeStamp& value) { mLastRespawn = value; }
 
         private:
 

@@ -239,6 +239,7 @@ jobs:
           Copy-Item server-scripts/custom/friendlyFire.lua $customDir
           Copy-Item server-scripts/custom/topicJournalPersistence.lua $customDir
           Copy-Item server-scripts/custom/npcDispositionPersistence.lua $customDir
+          Copy-Item server-scripts/custom/cellRespawnPersistence.lua $customDir
 
           $customScripts = Join-Path $serverDir 'scripts\customScripts.lua'
           if (-not (Test-Path $customScripts)) { throw 'CoreScripts customScripts.lua was not found.' }
@@ -246,7 +247,8 @@ jobs:
             'require("custom/localMapPersistence")',
             'require("custom/friendlyFire")',
             'require("custom/topicJournalPersistence")',
-            'require("custom/npcDispositionPersistence")'
+            'require("custom/npcDispositionPersistence")',
+            'require("custom/cellRespawnPersistence")'
           )) {
             if (-not (Select-String -Path $customScripts -SimpleMatch $requireLine -Quiet)) {
               Add-Content -Path $customScripts -Value $requireLine

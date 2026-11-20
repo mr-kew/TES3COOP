@@ -31,7 +31,7 @@ namespace MWClass
             void writeAdditionalState (const MWWorld::ConstPtr& ptr, ESM::ObjectState& state) const override;
             ///< Write additional state from \a ptr into \a state.
 
-            void respawn (const MWWorld::Ptr& ptr) const override;
+            bool respawn (const MWWorld::Ptr& ptr) const override;
     };
 }
 

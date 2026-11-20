@@ -6,6 +6,8 @@
 #include "../mwworld/ptr.hpp"
 #include "../mwworld/timestamp.hpp"
 #include <RakNetTypes.h>
+#include <map>
+#include <chrono>
 
 namespace mwmp
 {
@@ -112,11 +114,16 @@ namespace mwmp
         void sendSelectedSpell(const std::string& newSelectedSpellId);
         void sendItemUse(const MWWorld::Ptr& itemPtr, bool usingItemMagic = false, char currentDrawState = 0);
         void sendCellStates();
+        void queueCellRespawnUpdate(const CellRespawnUpdate& update);
+        void updateCellRespawnQueue();
+        void acknowledgeCellRespawn(uint32_t updateId);
+        void deferCellRespawn(uint32_t updateId);
+        void deferCellRespawnState(const CellRespawnUpdate& update);
 
         void clearCellStates();
         void clearCurrentContainer();
 
-        void storeCellState(const ESM::Cell& cell, int stateType);
+        void storeCellState(const ESM::Cell& cell, int stateType, float lastRespawnHour = 0.f, int lastRespawnDay = 0);
         void storeCurrentContainer(const MWWorld::Ptr& container);
         void storeItemRemoval(const std::string& refId, int count);
         void storeLastEnchantmentQuantity(unsigned int quantity);
@@ -127,6 +134,11 @@ namespace mwmp
         MWWorld::Ptr getPlayerPtr();
 
     private:
+        std::map<uint32_t, CellRespawnUpdate> pendingCellRespawns;
+        std::map<uint32_t, std::chrono::steady_clock::time_point> cellRespawnLastSent;
+        std::map<std::string, CellRespawnUpdate> pendingCellRespawnStates;
+        std::map<std::string, bool> cellRespawnPermissions;
+        uint32_t nextCellRespawnUpdateId = 0;
         Networking *getNetworking();
 
     };

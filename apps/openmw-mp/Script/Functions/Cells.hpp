@@ -2,12 +2,15 @@
 #define OPENMW_CELLAPI_HPP
 
 #include "../Types.hpp"
+#include <components/openmw-mp/Base/BasePlayer.hpp>
 
 #define CELLAPI \
     {"GetCellStateChangesSize", CellFunctions::GetCellStateChangesSize},\
     \
     {"GetCellStateType",        CellFunctions::GetCellStateType},\
     {"GetCellStateDescription", CellFunctions::GetCellStateDescription},\
+    {"GetCellStateLastRespawnHour", CellFunctions::GetCellStateLastRespawnHour},\
+    {"GetCellStateLastRespawnDay", CellFunctions::GetCellStateLastRespawnDay},\
     \
     {"GetCell",                 CellFunctions::GetCell},\
     {"GetExteriorX",            CellFunctions::GetExteriorX},\
@@ -20,12 +23,30 @@
     {"SetCell",                 CellFunctions::SetCell},\
     {"SetExteriorCell",         CellFunctions::SetExteriorCell},\
     \
-    {"SendCell",                CellFunctions::SendCell}
+    {"SendCell",                CellFunctions::SendCell},\
+    {"ReadPlayerCellRespawn", CellFunctions::ReadPlayerCellRespawn},\
+    {"GetPlayerCellRespawnAction", CellFunctions::GetPlayerCellRespawnAction},\
+    {"GetPlayerCellRespawnUpdateId", CellFunctions::GetPlayerCellRespawnUpdateId},\
+    {"GetPlayerCellRespawnCellDescription", CellFunctions::GetPlayerCellRespawnCellDescription},\
+    {"GetPlayerCellRespawnLastRespawnHour", CellFunctions::GetPlayerCellRespawnLastRespawnHour},\
+    {"GetPlayerCellRespawnLastRespawnDay", CellFunctions::GetPlayerCellRespawnLastRespawnDay},\
+    {"GetPlayerCellRespawnReferenceCount", CellFunctions::GetPlayerCellRespawnReferenceCount},\
+    {"GetPlayerCellRespawnReferenceRefNum", CellFunctions::GetPlayerCellRespawnReferenceRefNum},\
+    {"GetPlayerCellRespawnReferenceMpNum", CellFunctions::GetPlayerCellRespawnReferenceMpNum},\
+    {"GetPlayerCellRespawnReferenceType", CellFunctions::GetPlayerCellRespawnReferenceType},\
+    {"GetPlayerCellRespawnReferenceCurrentCell", CellFunctions::GetPlayerCellRespawnReferenceCurrentCell},\
+    {"SetPlayerCellRespawnAction", CellFunctions::SetPlayerCellRespawnAction},\
+    {"SetPlayerCellRespawnState", CellFunctions::SetPlayerCellRespawnState},\
+    {"SetPlayerCellRespawnLastRespawn", CellFunctions::SetPlayerCellRespawnLastRespawn},\
+    {"SendPlayerCellRespawn", CellFunctions::SendPlayerCellRespawn}
 
 
 class CellFunctions
 {
 public:
+
+    static mwmp::BasePlayer *readCellRespawnPlayer;
+    static std::string tempCellRespawnDescription;
 
     /**
     * \brief Get the number of indexes in a player's latest cell state changes.
@@ -52,6 +73,25 @@ public:
     * \return The cell description.
     */
     static const char *GetCellStateDescription(unsigned short pid, unsigned int index) noexcept;
+
+    static double GetCellStateLastRespawnHour(unsigned short pid, unsigned int index) noexcept;
+    static int GetCellStateLastRespawnDay(unsigned short pid, unsigned int index) noexcept;
+
+    static void ReadPlayerCellRespawn(unsigned short pid) noexcept;
+    static int GetPlayerCellRespawnAction() noexcept;
+    static unsigned int GetPlayerCellRespawnUpdateId() noexcept;
+    static const char* GetPlayerCellRespawnCellDescription() noexcept;
+    static double GetPlayerCellRespawnLastRespawnHour() noexcept;
+    static int GetPlayerCellRespawnLastRespawnDay() noexcept;
+    static unsigned int GetPlayerCellRespawnReferenceCount() noexcept;
+    static unsigned int GetPlayerCellRespawnReferenceRefNum(unsigned int index) noexcept;
+    static unsigned int GetPlayerCellRespawnReferenceMpNum(unsigned int index) noexcept;
+    static unsigned int GetPlayerCellRespawnReferenceType(unsigned int index) noexcept;
+    static const char* GetPlayerCellRespawnReferenceCurrentCell(unsigned int index) noexcept;
+    static void SetPlayerCellRespawnAction(unsigned short pid, int action) noexcept;
+    static void SetPlayerCellRespawnState(unsigned short pid, const char* cellDescription, double hour, int day, bool shouldRespawn) noexcept;
+    static void SetPlayerCellRespawnLastRespawn(unsigned short pid, double hour, int day) noexcept;
+    static void SendPlayerCellRespawn(unsigned short pid, bool sendToOtherPlayers, bool skipAttachedPlayer) noexcept;
 
     /**
     * \brief Get the cell description of a player's cell.

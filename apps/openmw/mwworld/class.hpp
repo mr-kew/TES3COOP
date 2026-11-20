@@ -373,7 +373,7 @@ namespace MWWorld
             /// This does not actually cause the door to move. Use World::activateDoor instead.
             virtual void setDoorState (const MWWorld::Ptr &ptr, DoorState state) const;
 
-            virtual void respawn (const MWWorld::Ptr& ptr) const {}
+            virtual bool respawn (const MWWorld::Ptr& ptr) const { return false; }
 
             /// Returns sound id
             virtual std::string getSound(const MWWorld::ConstPtr& ptr) const;

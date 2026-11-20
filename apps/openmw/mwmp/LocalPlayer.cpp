@@ -1,6 +1,7 @@
 #include <components/esm/esmwriter.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 #include <components/openmw-mp/Utils.hpp>
+#include <sstream>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/journal.hpp"
@@ -1907,6 +1908,154 @@ void LocalPlayer::sendCellStates()
     getNetworking()->getPlayerPacket(ID_PLAYER_CELL_STATE)->Send();
 }
 
+void LocalPlayer::queueCellRespawnUpdate(const CellRespawnUpdate& source)
+{
+    CellRespawnUpdate update = source;
+    update.updateId = ++nextCellRespawnUpdateId;
+    if (update.updateId == 0)
+        update.updateId = ++nextCellRespawnUpdateId;
+    pendingCellRespawns[update.updateId] = std::move(update);
+    cellRespawnLastSent[update.updateId] = std::chrono::steady_clock::time_point();
+}
+
+void LocalPlayer::updateCellRespawnQueue()
+{
+    Networking* networking = getNetworking();
+    if (!networking || !networking->isConnected() || !networking->isHandshakeComplete() || !isLoggedIn())
+        return;
+
+    const auto now = std::chrono::steady_clock::now();
+    MWBase::World* world = MWBase::Environment::get().getWorld();
+
+    for (auto state = pendingCellRespawnStates.begin(); state != pendingCellRespawnStates.end();)
+    {
+        MWWorld::CellStore* cellStore = world->getInterior(state->first);
+        if (!cellStore)
+        {
+            std::istringstream coordinates(state->first);
+            int x = 0;
+            int y = 0;
+            char comma = 0;
+            if (!(coordinates >> x >> comma >> y) || comma != ',')
+            {
+                state = pendingCellRespawnStates.erase(state);
+                continue;
+            }
+            cellStore = world->getExterior(x, y);
+        }
+        if (!cellStore || !cellStore->getCell()
+            || !Main::get().getCellController()->hasLocalAuthority(*cellStore->getCell()))
+        {
+            ++state;
+            continue;
+        }
+
+        cellStore->setLastRespawn(MWWorld::TimeStamp(state->second.lastRespawnHour, state->second.lastRespawnDay));
+        if (!state->second.shouldRespawn)
+        {
+            const std::string cellDescription = state->first;
+            for (auto update = pendingCellRespawns.begin(); update != pendingCellRespawns.end();)
+            {
+                if (update->second.cellDescription == cellDescription)
+                {
+                    cellRespawnLastSent.erase(update->first);
+                    update = pendingCellRespawns.erase(update);
+                }
+                else
+                    ++update;
+            }
+            state = pendingCellRespawnStates.erase(state);
+            continue;
+        }
+        const MWWorld::TimeStamp lastRespawnBefore = cellStore->getLastRespawn();
+        const auto respawned = cellStore->respawn(true, false);
+        const MWWorld::TimeStamp lastRespawnAfter = cellStore->getLastRespawn();
+        if (!respawned.empty() || lastRespawnAfter != lastRespawnBefore)
+        {
+            CellRespawnUpdate update = state->second;
+            update.references.clear();
+            update.lastRespawnHour = lastRespawnAfter.getHour();
+            update.lastRespawnDay = lastRespawnAfter.getDay();
+            for (const auto& reference : respawned)
+            {
+                CellRespawnedReference networkReference;
+                networkReference.refNum = reference.refNum;
+                networkReference.mpNum = reference.mpNum;
+                networkReference.type = reference.type;
+                networkReference.currentCell = reference.currentCell;
+                update.references.push_back(std::move(networkReference));
+            }
+            queueCellRespawnUpdate(update);
+        }
+        state = pendingCellRespawnStates.erase(state);
+    }
+
+    for (const auto& pending : pendingCellRespawns)
+    {
+        const auto permission = cellRespawnPermissions.find(pending.second.cellDescription);
+        if (permission == cellRespawnPermissions.end() || !permission->second)
+            continue;
+
+        auto& lastSent = cellRespawnLastSent[pending.first];
+        if (lastSent.time_since_epoch().count() != 0 && now - lastSent < std::chrono::seconds(3))
+            continue;
+
+        MWWorld::CellStore* cellStore = world->getInterior(pending.second.cellDescription);
+        if (!cellStore)
+        {
+            std::istringstream coordinates(pending.second.cellDescription);
+            int x = 0;
+            int y = 0;
+            char comma = 0;
+            if (!(coordinates >> x >> comma >> y) || comma != ',')
+                continue;
+            cellStore = world->getExterior(x, y);
+        }
+        if (!cellStore || !cellStore->getCell()
+            || !Main::get().getCellController()->hasLocalAuthority(*cellStore->getCell()))
+            continue;
+
+        cellRespawn = pending.second;
+        cellRespawnAction = CELL_RESPAWN_UPDATE;
+        networking->getPlayerPacket(ID_PLAYER_CELL_RESPAWN)->setPlayer(this);
+        networking->getPlayerPacket(ID_PLAYER_CELL_RESPAWN)->Send();
+        lastSent = now;
+    }
+}
+
+void LocalPlayer::acknowledgeCellRespawn(uint32_t updateId)
+{
+    pendingCellRespawns.erase(updateId);
+    cellRespawnLastSent.erase(updateId);
+}
+
+void LocalPlayer::deferCellRespawn(uint32_t updateId)
+{
+    if (pendingCellRespawns.find(updateId) != pendingCellRespawns.end())
+        cellRespawnLastSent[updateId] = std::chrono::steady_clock::time_point();
+}
+
+void LocalPlayer::deferCellRespawnState(const CellRespawnUpdate& update)
+{
+    cellRespawnPermissions[update.cellDescription] = update.shouldRespawn;
+    if (!update.shouldRespawn)
+    {
+        for (auto pending = pendingCellRespawns.begin(); pending != pendingCellRespawns.end();)
+        {
+            if (pending->second.cellDescription == update.cellDescription)
+            {
+                cellRespawnLastSent.erase(pending->first);
+                pending = pendingCellRespawns.erase(pending);
+            }
+            else
+                ++pending;
+        }
+        pendingCellRespawnStates.erase(update.cellDescription);
+        return;
+    }
+    pendingCellRespawnStates[update.cellDescription] = update;
+}
+
 void LocalPlayer::clearCellStates()
 {
     cellStateChanges.clear();
@@ -1919,15 +2068,37 @@ void LocalPlayer::clearCurrentContainer()
     currentContainer.mpNum = 0;
 }
 
-void LocalPlayer::storeCellState(const ESM::Cell& storedCell, int stateType)
+void LocalPlayer::storeCellState(const ESM::Cell& storedCell, int stateType, float lastRespawnHour, int lastRespawnDay)
 {
+    const std::string cellDescription = storedCell.getShortDescription();
+    if (stateType == CellState::LOAD)
+    {
+        cellRespawnPermissions.erase(cellDescription);
+        pendingCellRespawnStates.erase(cellDescription);
+    }
+    else if (stateType == CellState::UNLOAD)
+    {
+        cellRespawnPermissions.erase(cellDescription);
+        pendingCellRespawnStates.erase(cellDescription);
+        for (auto update = pendingCellRespawns.begin(); update != pendingCellRespawns.end();)
+        {
+            if (update->second.cellDescription == cellDescription)
+            {
+                cellRespawnLastSent.erase(update->first);
+                update = pendingCellRespawns.erase(update);
+            }
+            else
+                ++update;
+        }
+    }
+
     std::vector<CellState>::iterator iter;
 
     for (iter = cellStateChanges.begin(); iter != cellStateChanges.end(); )
     {
         // If there's already a cell state recorded for this particular cell,
         // remove it
-        if (storedCell.getShortDescription() == (*iter).cell.getShortDescription())
+        if (cellDescription == (*iter).cell.getShortDescription())
             iter = cellStateChanges.erase(iter);
         else
             ++iter;
@@ -1936,6 +2107,8 @@ void LocalPlayer::storeCellState(const ESM::Cell& storedCell, int stateType)
     CellState cellState;
     cellState.cell = storedCell;
     cellState.type = stateType;
+    cellState.lastRespawnHour = lastRespawnHour;
+    cellState.lastRespawnDay = lastRespawnDay;
 
     cellStateChanges.push_back(cellState);
 }

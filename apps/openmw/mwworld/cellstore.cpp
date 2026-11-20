@@ -1317,8 +1317,9 @@ namespace MWWorld
         }
     }
 
-    void CellStore::respawn()
+    std::vector<CellStore::VanillaRespawnedReference> CellStore::respawn(bool respawnContainers, bool respawnActors)
     {
+        std::vector<VanillaRespawnedReference> respawnedReferences;
         if (mState == State_Loaded)
         {
             static const int iMonthsToRespawn = MWBase::Environment::get().getWorld()->getStore().get<ESM::GameSetting>().find("iMonthsToRespawn")->mValue.getInteger();
@@ -1328,29 +1329,45 @@ namespace MWWorld
                 for (CellRefList<ESM::Container>::List::iterator it (mContainers.mList.begin()); it!=mContainers.mList.end(); ++it)
                 {
                     Ptr ptr = getCurrentPtr(&*it);
-                    ptr.getClass().respawn(ptr);
+                    const std::string currentCell = ptr.getCell()->getCell()->getShortDescription();
+                    if (ptr.getClass().respawn(ptr))
+                        respawnedReferences.push_back({ptr.getCellRef().getRefNum().mIndex,
+                            ptr.getCellRef().getMpNum(), RespawnContainer, currentCell});
                 }
             }
 
-            for (CellRefList<ESM::Creature>::List::iterator it (mCreatures.mList.begin()); it!=mCreatures.mList.end(); ++it)
+            if (respawnActors)
             {
-                Ptr ptr = getCurrentPtr(&*it);
-                clearCorpse(ptr);
-                ptr.getClass().respawn(ptr);
-            }
-            for (CellRefList<ESM::NPC>::List::iterator it (mNpcs.mList.begin()); it!=mNpcs.mList.end(); ++it)
-            {
-                Ptr ptr = getCurrentPtr(&*it);
-                clearCorpse(ptr);
-                ptr.getClass().respawn(ptr);
-            }
-            for (CellRefList<ESM::CreatureLevList>::List::iterator it (mCreatureLists.mList.begin()); it!=mCreatureLists.mList.end(); ++it)
-            {
-                Ptr ptr = getCurrentPtr(&*it);
-                // no need to clearCorpse, handled as part of mCreatures
-                ptr.getClass().respawn(ptr);
+                for (CellRefList<ESM::Creature>::List::iterator it (mCreatures.mList.begin()); it!=mCreatures.mList.end(); ++it)
+                {
+                    Ptr ptr = getCurrentPtr(&*it);
+                    const std::string currentCell = ptr.getCell()->getCell()->getShortDescription();
+                    clearCorpse(ptr);
+                    if (ptr.getClass().respawn(ptr))
+                        respawnedReferences.push_back({ptr.getCellRef().getRefNum().mIndex,
+                            ptr.getCellRef().getMpNum(), RespawnActor, currentCell});
+                }
+                for (CellRefList<ESM::NPC>::List::iterator it (mNpcs.mList.begin()); it!=mNpcs.mList.end(); ++it)
+                {
+                    Ptr ptr = getCurrentPtr(&*it);
+                    const std::string currentCell = ptr.getCell()->getCell()->getShortDescription();
+                    clearCorpse(ptr);
+                    if (ptr.getClass().respawn(ptr))
+                        respawnedReferences.push_back({ptr.getCellRef().getRefNum().mIndex,
+                            ptr.getCellRef().getMpNum(), RespawnActor, currentCell});
+                }
+                for (CellRefList<ESM::CreatureLevList>::List::iterator it (mCreatureLists.mList.begin()); it!=mCreatureLists.mList.end(); ++it)
+                {
+                    Ptr ptr = getCurrentPtr(&*it);
+                    const std::string currentCell = ptr.getCell()->getCell()->getShortDescription();
+                    // no need to clearCorpse, handled as part of mCreatures
+                    if (ptr.getClass().respawn(ptr))
+                        respawnedReferences.push_back({ptr.getCellRef().getRefNum().mIndex,
+                            ptr.getCellRef().getMpNum(), RespawnCreatureList, currentCell});
+                }
             }
         }
+        return respawnedReferences;
     }
 
     void MWWorld::CellStore::rechargeItems(float duration)

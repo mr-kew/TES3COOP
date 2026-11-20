@@ -92,7 +92,7 @@ namespace MWClass
 
             static void registerSelf();
 
-            void respawn (const MWWorld::Ptr& ptr) const override;
+            bool respawn (const MWWorld::Ptr& ptr) const override;
 
             std::string getModel(const MWWorld::ConstPtr &ptr) const override;
 

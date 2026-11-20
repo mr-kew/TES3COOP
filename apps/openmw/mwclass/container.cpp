@@ -96,7 +96,7 @@ namespace MWClass
         return animation->canBeHarvested();
     }
 
-    void Container::respawn(const MWWorld::Ptr &ptr) const
+    bool Container::respawn(const MWWorld::Ptr &ptr) const
     {
         MWWorld::LiveCellRef<ESM::Container> *ref =
             ptr.get<ESM::Container>();
@@ -104,11 +104,14 @@ namespace MWClass
         {
             // Container was not touched, there is no need to modify its content.
             if (ptr.getRefData().getCustomData() == nullptr)
-                return;
+                return false;
 
             MWBase::Environment::get().getWorld()->removeContainerScripts(ptr);
             ptr.getRefData().setCustomData(nullptr);
+            return true;
         }
+
+        return false;
     }
 
     void Container::insertObjectRendering (const MWWorld::Ptr& ptr, const std::string& model, MWRender::RenderingInterface& renderingInterface) const
