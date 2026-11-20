@@ -72,7 +72,7 @@ void CellFunctions::ReadPlayerCellRespawn(unsigned short pid) noexcept
 
 int CellFunctions::GetPlayerCellRespawnAction() noexcept
 {
-    return readCellRespawnPlayer ? readCellRespawnPlayer->cellRespawnAction : CELL_RESPAWN_UPDATE;
+    return readCellRespawnPlayer ? readCellRespawnPlayer->cellRespawnAction : mwmp::CELL_RESPAWN_UPDATE;
 }
 
 unsigned int CellFunctions::GetPlayerCellRespawnUpdateId() noexcept
