@@ -27,6 +27,7 @@
 */
 #include "../mwmp/Main.hpp"
 #include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/Networking.hpp"
 /*
     End of tes3mp addition
 */
