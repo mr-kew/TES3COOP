@@ -2,6 +2,9 @@
 
 TES3COOP is a custom cooperative multiplayer build based on [TES3MP](https://github.com/TES3MP/TES3MP) and [OpenMW](https://github.com/OpenMW/openmw). It adds client and server changes for a more cooperative Morrowind experience while keeping TES3MP's multiplayer foundation.
 
+> [!WARNING]
+> Dot't use this, it's AI slop! Use regular TES3MP instead.
+
 This repository targets TES3MP 0.8.1 and OpenMW 0.47.0. TES3COOP builds are not interchangeable with unmodified TES3MP builds when they use custom network features; players should use matching client and server builds.
 
 ## Included features
