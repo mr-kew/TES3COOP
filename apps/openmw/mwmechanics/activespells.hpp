@@ -146,6 +146,7 @@ namespace MWMechanics
 
             /// Remove all spells
             void clear();
+            void clearExcept(short effectId);
 
             bool isSpellActive (const std::string& id) const;
             ///< case insensitive

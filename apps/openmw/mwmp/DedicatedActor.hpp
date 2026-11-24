@@ -21,6 +21,8 @@ namespace mwmp
         void setPosition();
         void setAnimFlags();
         void setStatsDynamic();
+        void confirmDeath(bool isInstantDeath);
+        bool hasConfirmedDeath() const { return deathConfirmed; }
         void setEquipment();
         void setAi();
         void playAnimation();
@@ -42,6 +44,7 @@ namespace mwmp
 
         bool hasReceivedInitialEquipment;
         bool hasChangedCell;
+        bool deathConfirmed = false;
     };
 }
 

@@ -77,6 +77,7 @@ namespace MWMechanics
             std::size_t size() const { return mActors.size(); }
 
             void notifyDied(const MWWorld::Ptr &actor);
+            static void captureSoul(const MWWorld::Ptr& actor, bool localPlayerOnly = false);
 
             /// Check if the target actor was detected by an observer
             /// If the observer is a non-NPC, check all actors in AI processing distance as observers

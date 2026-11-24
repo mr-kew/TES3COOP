@@ -235,8 +235,7 @@ void Cell::readDeath(ActorList& actorList)
         if (dedicatedActors.count(mapIndex) > 0)
         {
             DedicatedActor *actor = dedicatedActors[mapIndex];
-            actor->creatureStats.mDead = true;
-            actor->creatureStats.mDynamic[0].mCurrent = 0;
+            actor->confirmDeath(baseActor.isInstantDeath);
 
             Main::get().getCellController()->setQueuedDeathState(actor->getPtr(), baseActor.deathState);
 

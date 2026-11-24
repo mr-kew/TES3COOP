@@ -23,6 +23,7 @@
 #include "../mwmp/LocalPlayer.hpp"
 #include "../mwmp/PlayerList.hpp"
 #include "../mwmp/DedicatedPlayer.hpp"
+#include "../mwmp/DedicatedActor.hpp"
 #include "../mwmp/CellController.hpp"
 #include "../mwmp/MechanicsHelper.hpp"
 #include "../mwmp/ObjectList.hpp"
@@ -277,11 +278,12 @@ namespace MWMechanics
     class SoulTrap : public MWMechanics::EffectSourceVisitor
     {
         MWWorld::Ptr mCreature;
-        MWWorld::Ptr mActor;
+        bool mLocalPlayerOnly;
         bool mTrapped;
     public:
-        SoulTrap(const MWWorld::Ptr& trappedCreature)
+        SoulTrap(const MWWorld::Ptr& trappedCreature, bool localPlayerOnly)
             : mCreature(trappedCreature)
+            , mLocalPlayerOnly(localPlayerOnly)
             , mTrapped(false)
         {
         }
@@ -294,13 +296,15 @@ namespace MWMechanics
                 return;
             if (key.mId != ESM::MagicEffect::Soultrap)
                 return;
-            if (magnitude <= 0)
+            if (magnitude <= 0 || remainingTime <= 0)
                 return;
 
             MWBase::World* world = MWBase::Environment::get().getWorld();
 
             MWWorld::Ptr caster = world->searchPtrViaActorId(casterActorId);
             if (caster.isEmpty() || !caster.getClass().isActor())
+                return;
+            if (mLocalPlayerOnly && caster != getPlayer())
                 return;
 
             static const float fSoulgemMult = world->getStore().get<ESM::GameSetting>().find("fSoulgemMult")->mValue.getFloat();
@@ -2383,6 +2387,15 @@ namespace MWMechanics
         }
     }
 
+    void Actors::captureSoul(const MWWorld::Ptr& actor, bool localPlayerOnly)
+    {
+        if (actor.getTypeName() != typeid(ESM::Creature).name())
+            return;
+
+        SoulTrap soulTrap(actor, localPlayerOnly);
+        actor.getClass().getCreatureStats(actor).getActiveSpells().visitEffectSources(soulTrap);
+    }
+
     void Actors::killDeadActors()
     {
         for(PtrActorMap::iterator iter(mActors.begin()); iter != mActors.end(); ++iter)
@@ -2392,6 +2405,10 @@ namespace MWMechanics
 
             if(!stats.isDead())
                 continue;
+
+            auto* cellController = mwmp::Main::get().getCellController();
+            auto* dedicatedActor = !cellController->isLocalActor(iter->first) && cellController->isDedicatedActor(iter->first)
+                ? cellController->getDedicatedActor(iter->first) : nullptr;
 
             MWBase::Environment::get().getWorld()->removeActorPath(iter->first);
             CharacterController::KillResult killResult = iter->second->getCharacterController()->kill();
@@ -2412,12 +2429,9 @@ namespace MWMechanics
                     End of tes3mp change (major)
                 */
 
-                // Apply soultrap
-                if (iter->first.getTypeName() == typeid(ESM::Creature).name())
-                {
-                    SoulTrap soulTrap (iter->first);
-                    stats.getActiveSpells().visitEffectSources(soulTrap);
-                }
+                // A replica's death animation can begin before its authority confirms the kill.
+                if (!dedicatedActor)
+                    captureSoul(iter->first);
 
                 // Magic effects will be reset later, and the magic effect that could kill the actor
                 // needs to be determined now
@@ -2434,7 +2448,11 @@ namespace MWMechanics
                 // Reset magic effects and recalculate derived effects
                 // One case where we need this is to make sure bound items are removed upon death
                 stats.modifyMagicEffects(MWMechanics::MagicEffects());
-                stats.getActiveSpells().clear();
+                // Keep the trap available if the local animation finishes before the death packet arrives.
+                if (dedicatedActor && !dedicatedActor->hasConfirmedDeath())
+                    stats.getActiveSpells().clearExcept(ESM::MagicEffect::Soultrap);
+                else
+                    stats.getActiveSpells().clear();
                 // Make sure spell effects are removed
                 purgeSpellEffects(stats.getActorId());
 

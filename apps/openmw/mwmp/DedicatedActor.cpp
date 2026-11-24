@@ -1,3 +1,4 @@
+#include <components/esm/loadmgef.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -12,6 +13,7 @@
 #include "../mwmechanics/aifollow.hpp"
 #include "../mwmechanics/aitravel.hpp"
 #include "../mwmechanics/aiwander.hpp"
+#include "../mwmechanics/actors.hpp"
 
 #include "../mwmechanics/creaturestats.hpp"
 #include "../mwmechanics/mechanicsmanagerimp.hpp"
@@ -152,13 +154,33 @@ void DedicatedActor::setStatsDynamic()
 
     // Resurrect this Actor if it's not supposed to be dead according to its authority
     if (creatureStats.mDynamic[0].mCurrent > 0)
+    {
+        deathConfirmed = false;
         MWBase::Environment::get().getMechanicsManager()->resurrect(ptr);
+    }
 
     for (int i = 0; i < 3; ++i)
     {
         value.readState(creatureStats.mDynamic[i]);
         ptrCreatureStats->setDynamic(i, value);
     }
+}
+
+void DedicatedActor::confirmDeath(bool isInstantDeath)
+{
+    creatureStats.mDead = true;
+    creatureStats.mDynamic[0].mCurrent = 0;
+
+    if (deathConfirmed || Main::get().getCellController()->isLocalActor(ptr))
+        return;
+    deathConfirmed = true;
+
+    if (!isInstantDeath)
+        MWMechanics::Actors::captureSoul(ptr, true);
+
+    auto& stats = ptr.getClass().getCreatureStats(ptr);
+    if (isInstantDeath || stats.isDeathAnimationFinished())
+        stats.getActiveSpells().purgeEffect(ESM::MagicEffect::Soultrap);
 }
 
 void DedicatedActor::setEquipment()

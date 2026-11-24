@@ -1,5 +1,7 @@
 #include "activespells.hpp"
 
+#include <algorithm>
+
 #include <components/misc/rng.hpp>
 #include <components/misc/stringops.hpp>
 
@@ -496,6 +498,21 @@ namespace MWMechanics
     void ActiveSpells::clear()
     {
         mSpells.clear();
+        mSpellsChanged = true;
+    }
+
+    void ActiveSpells::clearExcept(short effectId)
+    {
+        for (auto spell = mSpells.begin(); spell != mSpells.end(); )
+        {
+            auto& effects = spell->second.mEffects;
+            effects.erase(std::remove_if(effects.begin(), effects.end(),
+                [effectId](const ActiveEffect& effect) { return effect.mEffectId != effectId; }), effects.end());
+            if (effects.empty())
+                spell = mSpells.erase(spell);
+            else
+                ++spell;
+        }
         mSpellsChanged = true;
     }
 
